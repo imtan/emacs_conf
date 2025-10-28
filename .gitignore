@@ -1,0 +1,81 @@
+# Emacs機密情報・認証トークン
+oauth2-auto.plist
+smudge/token
+*.plist
+*secret*
+*credential*
+.authinfo
+.authinfo.gpg
+
+# 個人データ・履歴
+org-gcal/
+chatgpt/
+recentf
+recentf~
+bookmarks
+projects
+kkcrc
+
+# Projectile
+projectile-bookmarks.eld
+projectile.cache
+
+# Org-mode永続化データ
+org-persist/
+.org-id-locations
+.org-generic-id-locations
+
+# キャッシュ・一時ファイル
+.cache/
+auto-save-list/
+eln-cache/
+server/
+transient/
+url/
+persist/
+request/
+tree-sitter/
+
+# バックアップファイル
+*~
+*.backup
+\#*\#
+.#*
+
+# Dropbox同期競合ファイル
+*.sync-conflict*
+
+# ログ・デバッグファイル
+emacs_backtrace.txt
+*.log
+
+# フォントファイル（大きいため、必要に応じて再ダウンロード）
+*.ttf
+*.otf
+*.woff
+*.woff2
+
+# パッケージマネージャー生成ファイル
+elpa/
+straight/build/
+straight/build-cache.el
+straight/modified/
+straight/repos/*/
+
+# カスタムファイル（オプション：コミットしたい場合はコメントアウト）
+# custom.el
+
+# OS固有
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ddskk辞書（大きいため）
+skk-get-jisyo/
+ddskk/
+
+# cmigemo
+cmigemo-default-win64/
+
+# トラッキング対象外のドキュメント
+SECURITY_AUDIT.md
