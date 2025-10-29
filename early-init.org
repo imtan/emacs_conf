@@ -1,0 +1,64 @@
+#+TITLE: early-init.el
+#+AUTHOR: imtan
+#+PROPERTY: header-args
+#+STARTUP: overview
+
+* early-init.el
+** header
+#+begin_src emacs-lisp :tangle yes
+  ;;; package --- Summary
+  ;;; Commentary:
+  ;;; Code:
+#+end_src
+
+** package.elを起動しない
+#+begin_src emacs-lisp :tangle yes
+(setq package-enable-at-startup nil)
+#+end_src
+
+** straight.el
+#+begin_src emacs-lisp :tangle yes
+  ;; パッケージマネージャーのインストール
+  (defvar bootstrap-version)
+  (let ((bootstrap-file
+         (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+        (bootstrap-version 5))
+    (unless (file-exists-p bootstrap-file)
+      (with-current-buffer
+          (url-retrieve-synchronously
+           "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
+           'silent 'inhibit-cookies)
+        (goto-char (point-max))
+        (eval-print-last-sexp)))
+    (load bootstrap-file nil 'nomessage))
+
+  ;; 最新のorgをインストール
+  (straight-use-package 'org)
+#+end_src
+** 言語設定
+#+begin_src emacs-lisp :tangle yes
+  ;; 環境を日本語、UTF-8にする
+  (set-locale-environment "ja_JP.UTF-8")
+  (setq mac-option-modifier 'meta)
+  (setq visible-bell 1)
+  (set-locale-environment nil)
+  (set-language-environment "Japanese")
+  (set-terminal-coding-system 'utf-8)
+  (set-keyboard-coding-system 'utf-8)
+  (set-buffer-file-coding-system 'utf-8)
+  (setq default-buffer-file-coding-system 'utf-8)
+  (set-default-coding-systems 'utf-8)
+  (prefer-coding-system 'utf-8)
+#+end_src
+** バックアップファイル設定
+#+begin_src emacs-lisp :tangle yes
+  ;;; *.~ とかのバックアップファイルを作らない
+  (setq make-backup-files nil)
+  ;;; .#* とかのバックアップファイルを作らない
+  (setq auto-save-default nil)
+#+end_src
+** UI
+#+begin_src emacs-lisp :tangle yes
+  (menu-bar-mode 0)
+  (tool-bar-mode 0)
+#+end_src

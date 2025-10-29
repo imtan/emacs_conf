@@ -1,0 +1,356 @@
+#+TITLE: config.el
+#+AUTHOR: imtan
+* config.el
+** header
+
+#+begin_src emacs-lisp :tangle yes
+  ;;; package --- Summary
+  ;;; Commentary:
+  ;;; Code:
+
+#+end_src
+
+** OS判定用定数
+
+#+begin_src emacs-lisp :tangle yes
+  (defconst IS-MAC (eq system-type 'darwin))
+  (defconst IS-LINUX (memq system-type '(gnu gnu/linux gnu/kfreebsd berkeley-unix)))
+  (defconst IS-WINDOWS (memq system-type '(cygwin windows-nt ms-dos)))
+#+end_src
+
+** straight
+
+Emacs標準の ~package.el+quelpa~ や ~el-get~ 等を色々試した結果、
+たどり着いたパッケージマネージャー。
+設定は ~init.el~ に記述。
+
+| コマンド                  | 動作                                                                  |
+|--------------------------+----------------------------------------------------------------------|
+| straight-use-package     | パッケージのインストール                                                |
+| straight-pull-all        | 全てのパッケージを最新の状態に更新                                        |
+| straight-freeze-versions | ロックファイルを作成                                                    |
+| straight-thaw-versions   | ロックファイルのバージョンでインストールックファイルのバージョンでインストール |
+
+** use-package
+
+#+begin_src emacs-lisp :tangle yes
+  (straight-use-package 'use-package)
+#+end_src
+
+** bind-key
+
+#+begin_src emacs-lisp :tangle yes
+  (use-package bind-key
+    :straight t)
+
+  (global-set-key (kbd "C-c ,") (lambda() (interactive) (find-file "~/.emacs.d/init.el")))
+  (global-unset-key "\C-h")
+  (global-set-key "\C-h" 'delete-backward-char)
+  (global-set-key (kbd "C-c <left>")  'windmove-left)
+  (global-set-key (kbd "C-c <down>")  'windmove-down)
+  (global-set-key (kbd "C-c <up>")    'windmove-up)
+  (global-set-key (kbd "C-c <right>") 'windmove-right)
+#+end_src
+
+** IME
+
+Emacsは~C-\~で日本語入力を切り替えることができますが、
+デフォルトだとあまり補完が賢くないのでOSに合わせて導入します。
+
+*** DDSKK
+#+begin_src emacs-lisp :tangle yes
+  (defun my-enable-skk-mode ()
+    "新しいバッファで自動的にSKKモードを有効にし、ローマ字入力モードにする。"
+    (skk-mode 1)
+    (skk-latin-mode 1))
+
+  (use-package ddskk
+    :straight (ddskk :host github :repo "skk-dev/ddskk")
+    :bind (("C-\\" . skk-mode))
+    :init
+    (setq skk-user-directory "~/.emacs.d/ddskk")
+    (setq skk-init-file "~/.emacs.d/ddskk/init")
+    (setq skk-byte-compile-init-file t)
+    (setq skk-large-jisyo "~/.emacs.d/skk-get-jisyo/SKK-JISYO.myjisyo"))
+
+  (use-package ddskk-posframe
+    :straight (ddskk-posframe
+               :type git
+               :host github
+               :repo "conao3/ddskk-posframe.el"
+               :branch "master")
+    :config
+    (ddskk-posframe-mode 1))
+
+  (add-hook 'find-file-hook 'my-enable-skk-mode)
+  (add-hook 'after-change-major-mode-hook 'my-enable-skk-mode)
+#+end_src
+
+** dashboard
+#+begin_src emacs-lisp :tangle yes
+  (use-package dashboard
+    :straight t
+    :ensure t
+    :config
+    (add-hook 'elpaca-after-init-hook #'dashboard-insert-startupify-lists)
+    (add-hook 'elpaca-after-init-hook #'dashboard-initialize)
+    (dashboard-setup-startup-hook))
+
+  (setq dashboard-items '((recents  . 5)
+                          (bookmarks . 5)
+                          (projects . 5)
+                          (agenda . 5)
+                          (registers . 5)))
+#+end_src
+** magit
+#+begin_src emacs-lisp :tangle yes
+    ;; Magitのインストールと設定
+  (use-package magit
+    :straight t
+    :bind (("C-x g" . magit-status)
+           ("C-x M-g" . magit-dispatch)
+           ("C-c g" . magit-file-dispatch))
+    :config
+    ;; オプション: パフォーマンス改善の設定
+    (setq magit-diff-highlight-trailing nil))
+
+#+end_src
+** Org
+*** org-super-agenda
+#+begin_src emacs-lisp :tangle yes
+  (use-package org-super-agenda
+    :straight t
+    :ensure t
+    :after org
+    :config
+    (org-super-agenda-mode 1))
+#+end_src
+*** org-agenda
+#+begin_src emacs-lisp :tangle yes
+  (setq org-agenda-files
+        '("~/Dropbox/Org/capture/tasks.org"))
+  (setq org-agenda-use-time-grid t)
+  (setq org-agenda-span 'day)
+  (define-key global-map (kbd "C-c a") 'org-agenda)
+
+  (setopt org-agenda-block-separator "------------------------------")
+  (setq
+   ;; Edit settings
+   org-auto-align-tags nil
+   org-tags-column 0
+   org-fold-catch-invisible-edits 'show-and-error
+   org-special-ctrl-a/e t
+   org-insert-heading-respect-content t
+
+   ;; Org styling, hide markup etc.
+   org-hide-emphasis-markers t
+   org-pretty-entities t
+
+   ;; Agenda styling
+   org-agenda-tags-column 0
+   org-agenda-block-separator ?-
+   org-agenda-time-grid
+   '((daily today require-timed)
+     (800 1000 1200 1400 1600 1800 2000 2200 2400)
+     " ┄┄┄┄┄ " "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄")
+   org-agenda-current-time-string
+   "◀── now ─────────────────────────────────────────────────")
+#+end_src
+*** org-module
+#+begin_src emacs-lisp :tangle yes
+  (setq org-display-custom-times t)
+
+  (setq org-modules
+        '(ol-bbdb ol-bibtex ol-docview ol-doi ol-eww ol-gnus ol-info ol-irc
+  		ol-mhe ol-rmail org-tempo ol-w3m))
+
+  (setq org-startup-indented t)
+  (setq org-timestamp-custom-formats
+        '("<%Y年%m月%d日(%a)>" . "<%Y年%m月%d日(%a)%H時%M分>"))
+#+end_src
+*** org-roam
+#+begin_src emacs-lisp :tangle yes
+  (use-package org-roam
+    :ensure t
+    :straight t
+    :custom
+    (org-roam-db-location "~/Documents/Org/org-roam.db")
+    (org-roam-directory (file-truename "~/Dropbox/Org"))
+    :bind (("C-c n l" . org-roam-buffer-toggle)
+           ("C-c n f" . org-roam-node-find)
+           ("C-c n g" . org-roam-graph)
+           ("C-c n i" . org-roam-node-insert)
+           ("C-c n c" . org-roam-capture)
+           ;; Dailies
+           ("C-c n j" . org-roam-dailies-capture-today)
+           ("C-c n t" . org-roam-tag-add))
+    :config
+    ;; If you're using a vertical completion framework, you might want a more informative completion interface
+    (setq org-roam-node-display-template (concat "${title:*} " (propertize "${tags:10}" 'face 'org-tag)))
+    (org-roam-db-autosync-mode)
+    ;; If using org-roam-protocol
+    (require 'org-roam-protocol))
+#+end_src
+*** org-roam-ui
+#+begin_src emacs-lisp :tangle yes
+  (use-package org-roam-ui
+    :straight (:host github :repo "org-roam/org-roam-ui" :branch "main" :files ("*.el" "out"))
+    :after org-roam
+    :hook (after-init . org-roam-ui-mode)
+    :config
+    (setq org-roam-ui-sync-theme t
+          org-roam-ui-follow t
+          org-roam-ui-update-on-save t
+          org-roam-ui-open-on-start t))
+#+end_src
+*** org-modern
+#+begin_src emacs-lisp :tangle yes
+  (use-package org-modern
+    :straight t
+    :ensure t
+    :custom
+    (org-modern-hide-stars nil) ; adds extra indentation
+    (org-modern-table nil)
+    (org-modern-star nil)
+    (org-modern-list
+     '(;; (?- . "-")
+       (?* . " ")
+       (?+ . "‣")))
+    (org-modern-block-name '("" . "")) ; or other chars; so top bracket is drawn promptly
+    :hook
+    (org-mode . org-modern-mode)
+    (org-agenda-finalize . org-modern-agenda))
+
+  (use-package org-modern-indent
+    :straight (org-modern-indent :type git :host github :repo "jdtsmith/org-modern-indent")
+    :ensure t
+    :config ; add late to hook
+    (add-hook 'org-mode-hook #'org-modern-indent-mode 90))
+
+  (use-package org-bullets
+    :straight t
+    :ensure t
+    :config (setq org-bullets-bullet-list '("" "" "" "" "" "" "" "" "" ""))
+    :hook (org-mode . org-bullets-mode))
+#+end_src
+** vertico
+#+begin_src emacs-lisp :tangle yes
+  (use-package vertico
+    :straight t
+    :ensure t
+    :hook (rfn-eshadow-update-overlay . vertico-directory-tidy)
+    :init
+    (vertico-mode)
+    :custom
+    ;; Different scroll margin
+    ;; (setq vertico-scroll-margin 0)
+    ;; Show more candidates
+    ;; (setq vertico-count 20)
+    ;; Grow and shrink the Vertico minibuffer
+    ;; (setq vertico-resize t)
+    ;; Optionally enable cycling for `vertico-next' and `vertico-previous'.)
+    (vertico-cycle t))
+
+  (use-package vertico-posframe
+    :straight t
+    :ensure t)
+
+  (use-package vertico-multiform
+    :ensure nil
+    :hook (after-init . vertico-multiform-mode)
+    :init
+    (setq vertico-multiform-commands
+          '((consult-line (:not posframe))
+            (gopar/consult-line (:not posframe))
+            (consult-ag (:not posframe))
+            (consult-grep (:not posframe))
+            (consult-imenu (:not posframe))
+            (xref-find-definitions (:not posframe))
+    	  (t posframe))))
+#+end_src
+** ligature
+*** Ligature
+#+begin_src emacs-lisp :tangle yes
+  ;; This assumes you've installed the package via MELPA.
+  (use-package ligature
+    :straight t
+    :config
+    ;; Enable the "www" ligature in every possible major mode
+    (ligature-set-ligatures 't '("www"))
+    ;; Enable traditional ligature support in eww-mode, if the
+    ;; `variable-pitch' face supports it
+    (ligature-set-ligatures 'eww-mode '("ff" "fi" "ffi"))
+    ;; Enable all Cascadia Code ligatures in programming modes
+    (ligature-set-ligatures 'prog-mode '("|||>" "<|||" "<==>" "<!--" "####" "~~>" "***" "||=" "||>"
+                                         ":::" "::=" "=:=" "===" "==>" "=!=" "=>>" "=<<" "=/=" "!=="
+                                         "!!." ">=>" ">>=" ">>>" ">>-" ">->" "->>" "-->" "---" "-<<"
+                                         "<~~" "<~>" "<*>" "<||" "<|>" "<$>" "<==" "<=>" "<=<" "<->"
+                                         "<--" "<-<" "<<=" "<<-" "<<<" "<+>" "</>" "###" "#_(" "..<"
+                                         "..." "+++" "/==" "///" "_|_" "www" "&&" "^=" "~~" "~@" "~="
+                                         "~>" "~-" "**" "*>" "*/" "||" "|}" "|]" "|=" "|>" "|-" "{|"
+                                         "[|" "]#" "::" ":=" ":>" ":<" "$>" "==" "=>" "!=" "!!" ">:"
+                                         ">=" ">>" ">-" "-~" "-|" "->" "--" "-<" "<~" "<*" "<|" "<:"
+                                         "<$" "<=" "<>" "<-" "<<" "<+" "</" "#{" "#[" "#:" "#=" "#!"
+                                         "##" "#(" "#?" "#_" "%%" ".=" ".-" ".." ".?" "+>" "++" "?:"
+                                         "?=" "?." "??" ";;" "/*" "/=" "/>" "//" "__" "~~" "(*" "*)"
+                                         "\\\\" "://"))
+    (ligature-set-ligatures 'org-mode '("|||>" "<|||" "<==>" "<!--" "####" "~~>" "***" "||=" "||>"
+                                        ":::" "::=" "=:=" "===" "==>" "=!=" "=>>" "=<<" "=/=" "!=="
+                                        "!!." ">=>" ">>=" ">>>" ">>-" ">->" "->>" "-->" "---" "-<<"
+                                        "<~~" "<~>" "<*>" "<||" "<|>" "<$>" "<==" "<=>" "<=<" "<->"
+                                        "<--" "<-<" "<<=" "<<-" "<<<" "<+>" "</>" "###" "#_(" "..<"
+                                        "..." "+++" "/==" "///" "_|_" "www" "&&" "^=" "~~" "~@" "~="
+                                        "~>" "~-" "**" "*>" "*/" "||" "|}" "|]" "|=" "|>" "|-" "{|"
+                                        "[|" "]#" "::" ":=" ":>" ":<" "$>" "==" "=>" "!=" "!!" ">:"
+                                        ">=" ">>" ">-" "-~" "-|" "->" "--" "-<" "<~" "<*" "<|" "<:"
+                                        "<$" "<=" "<>" "<-" "<<" "<+" "</" "#{" "#[" "#:" "#=" "#!"
+                                        "##" "#(" "#?" "#_" "%%" ".=" ".-" ".." ".?" "+>" "++" "?:"
+                                        "?=" "?." "??" ";;" "/*" "/=" "/>" "//" "__" "~~" "(*" "*)"
+                                        "\\\\" "://"))
+    ;; Enables ligature checks globally in all buffers. You can also do it
+    ;; per mode with `ligature-mode'.
+    (global-ligature-mode t))
+#+end_src
+** 一時設定
+#+begin_src emacs-lisp :tangle yes
+  (defun wsl-paste ()
+    (interactive)
+    (insert (shell-command-to-string "powershell.exe -command 'Get-Clipboard'")))
+
+  (global-set-key (kbd "C-c C-v") 'wsl-paste)
+
+  ;; 行番号の表示
+  (global-display-line-numbers-mode)
+
+  ;; 末尾の空白を表示
+  (setq-default show-trailing-whitespace t)
+
+  ;; ホワイトスペースの可視化
+  (require 'whitespace)
+  (setq whitespace-style '(face tabs))
+  (global-whitespace-mode 1)
+
+  (use-package all-the-icons
+    :straight t
+    :if (display-graphic-p))
+
+  (use-package nerd-icons-dired
+    :straight t
+    :hook
+    (dired-mode . nerd-icons-dired-mode))
+#+end_src
+
+** 見た目の設定
+#+begin_src emacs-lisp :tangle yes
+  (load-theme 'modus-vivendi t)
+
+  (set-frame-font "Iosevka NFM ExtraLight-16" nil t)
+  (set-fontset-font t 'unicode "Iosevka NFM ExtraLight-16" nil 'prepend)
+  (set-fontset-font t 'unicode (font-spec :family "github-octicons") nil 'append)
+#+end_src
+
+** footer
+#+begin_src emacs-lisp :tangle yes
+  (provide 'config)
+      ;;; config.el ends here
+#+end_src
