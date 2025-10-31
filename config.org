@@ -11,13 +11,11 @@
 #+end_src
 
 ** OS判定用定数
-
 #+begin_src emacs-lisp :tangle yes
   (defconst IS-MAC (eq system-type 'darwin))
   (defconst IS-LINUX (memq system-type '(gnu gnu/linux gnu/kfreebsd berkeley-unix)))
   (defconst IS-WINDOWS (memq system-type '(cygwin windows-nt ms-dos)))
 #+end_src
-
 ** straight
 
 Emacs標準の ~package.el+quelpa~ や ~el-get~ 等を色々試した結果、
@@ -104,7 +102,7 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
 #+end_src
 ** magit
 #+begin_src emacs-lisp :tangle yes
-    ;; Magitのインストールと設定
+  ;; Magitのインストールと設定
   (use-package magit
     :straight t
     :bind (("C-x g" . magit-status)
@@ -267,6 +265,20 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
             (consult-imenu (:not posframe))
             (xref-find-definitions (:not posframe))
     	  (t posframe))))
+  (defvar +vertico-current-arrow t)
+
+  (cl-defmethod vertico--format-candidate :around
+    (cand prefix suffix index start &context ((and +vertico-current-arrow
+                                                   (not (bound-and-true-p vertico-flat-mode)))
+                                              (eql t)))
+    (setq cand (cl-call-next-method cand prefix suffix index start))
+    (if (bound-and-true-p vertico-grid-mode)
+        (if (= vertico--index index)
+            (concat (nerd-icons-faicon "nf-fa-hand_o_right") " " cand)
+          (concat #("_" 0 1 (display " ")) cand))
+      (if (= vertico--index index)
+          (concat " " (nerd-icons-faicon "nf-fa-hand_o_right") " " cand)
+        (concat "    " cand))))
 #+end_src
 ** ligature
 *** Ligature
@@ -339,7 +351,6 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     :hook
     (dired-mode . nerd-icons-dired-mode))
 #+end_src
-
 ** 見た目の設定
 #+begin_src emacs-lisp :tangle yes
   (load-theme 'modus-vivendi t)
@@ -348,7 +359,68 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
   (set-fontset-font t 'unicode "Iosevka NFM ExtraLight-16" nil 'prepend)
   (set-fontset-font t 'unicode (font-spec :family "github-octicons") nil 'append)
 #+end_src
+** all-the-icon
+#+begin_src emacs-lisp :tangle yes
+  (use-package all-the-icons
+    :straight t
+    :ensure t)
+  ;; M-x all-the-icons-install-fonts
+#+end_src
+** nerd-font
+#+begin_src emacs-lisp :tangle yes
+  (use-package nerd-icons
+    :straight t
+    :ensure t)
+  ;; M-x nerd-icons-install-fonts
+#+end_src
+** mode-line
+*** doom-modeline
+#+begin_src emacs-lisp :tangle no
+  (use-package doom-modeline
+    :straight t
+    :ensure t
+    :init (doom-modeline-mode 1))
+#+end_src
 
+*** moody-modeline
+#+begin_src emacs-lisp :tangle yes
+  (use-package moody
+    :straight t
+    :ensure t
+    :custom
+    (x-underline-at-descent-line t)
+    (moody-mode-line-height 24)
+    :config
+    (moody-replace-mode-line-buffer-identification)
+    ;(moody-replace-vc-mode)
+    (moody-replace-eldoc-minibuffer-message-function)
+    ;; 以下を追加
+    (when (eq IS-MAC t)
+      (setq moody-slant-function 'moody-slant-apple-rgb)))
+
+  (use-package minions
+    :straight t
+    :ensure t
+    :config
+    (minions-mode 1))
+#+end_src
+
+** スクロールバー
+#+begin_src emacs-lisp :tangle yes
+  (scroll-bar-mode -1)
+#+end_src
+
+*** nyancat
+#+begin_src emacs-lisp :tangle yes
+  ;; にゃーん
+  (use-package nyan-mode
+    :straight t
+    :ensure t
+    :config
+    (setq nyan-animate-nyancat t)   ;; アニメーションON
+    (setq nyan-bar-length 20)       ;; バーの長さ調整
+    (nyan-mode 1))
+#+end_src
 ** footer
 #+begin_src emacs-lisp :tangle yes
   (provide 'config)
