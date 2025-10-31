@@ -2,14 +2,11 @@
 #+AUTHOR: imtan
 * config.el
 ** header
-
 #+begin_src emacs-lisp :tangle yes
   ;;; package --- Summary
   ;;; Commentary:
   ;;; Code:
-
 #+end_src
-
 ** OS判定用定数
 #+begin_src emacs-lisp :tangle yes
   (defconst IS-MAC (eq system-type 'darwin))
@@ -17,7 +14,6 @@
   (defconst IS-WINDOWS (memq system-type '(cygwin windows-nt ms-dos)))
 #+end_src
 ** straight
-
 Emacs標準の ~package.el+quelpa~ や ~el-get~ 等を色々試した結果、
 たどり着いたパッケージマネージャー。
 設定は ~init.el~ に記述。
@@ -30,13 +26,10 @@ Emacs標準の ~package.el+quelpa~ や ~el-get~ 等を色々試した結果、
 | straight-thaw-versions   | ロックファイルのバージョンでインストールックファイルのバージョンでインストール |
 
 ** use-package
-
 #+begin_src emacs-lisp :tangle yes
   (straight-use-package 'use-package)
 #+end_src
-
 ** bind-key
-
 #+begin_src emacs-lisp :tangle yes
   (use-package bind-key
     :straight t)
@@ -51,7 +44,6 @@ Emacs標準の ~package.el+quelpa~ や ~el-get~ 等を色々試した結果、
 #+end_src
 
 ** IME
-
 Emacsは~C-\~で日本語入力を切り替えることができますが、
 デフォルトだとあまり補完が賢くないのでOSに合わせて導入します。
 
@@ -301,6 +293,15 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
           (concat " " (nerd-icons-faicon "nf-fa-hand_o_right") " " cand)
         (concat "    " cand))))
 #+end_src
+** consult
+#+begin_src emacs-lisp :tangle yes
+  (use-package consult
+    :straight t
+    :ensure t
+    :bind
+    (("M-g f" . consult-flymake)  ;; M-g f でエラー一覧へ
+     ("M-g l" . consult-line)))
+#+end_src
 ** ligaturen
 *** Ligature
 #+begin_src emacs-lisp :tangle yes
@@ -352,15 +353,88 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
                :type git
                :host github
                :repo "godotengine/emacs-gdscript-mode"))
-
 #+end_src
 *** LSP
-**** eglot
+**** lsp-mode
 #+begin_src emacs-lisp :tangle yes
-
+  ;; lsp-mode（診断提供元を Flycheck に）
+  (use-package lsp-mode
+    :straight t
+    :ensure t
+    :hook ((gdscript-mode . lsp-deferred))
+    :custom
+    (lsp-diagnostics-provider :flycheck)  ;; ← 重要
+    (lsp-headerline-breadcrumb-enable t))
+  ;; 見た目強化（任意）
+  (use-package lsp-ui
+    :straight t
+    :after lsp-mode
+    :ensure t
+    :hook (lsp-mode . lsp-ui-mode)
+    :custom
+    (lsp-ui-doc-delay 0.2)
+    (lsp-ui-sideline-enable t))
 #+end_src
-**** 
+*** Projectile
+#+begin_src emacs-lisp :tangle yes
+  (use-package projectile
+    :straight t
+    :ensure t
+    :init
+    (projectile-mode +1)
+    :bind (:map projectile-mode-map
+                ("s-p" . projectile-command-map)
+                ("C-c p" . projectile-command-map)))
+#+end_src
+*** flycheck
+#+begin_src emacs-lisp :tangle yes
+  ;; Flycheck（全体で有効）
+  (use-package flycheck
+    :straight t
+    :ensure t
+    :init (global-flycheck-mode))
 
+  ;; gdlint を Flycheck に統合（波線表示）
+  (with-eval-after-load 'flycheck
+    (flycheck-define-checker gdlint
+      "GDScript linter (gdtoolkit)."
+      :command ("gdlint" source)
+      :error-patterns
+      ((error line-start (file-name) ":" line ":" column ": E" (id (+ (not ?\:) )) ": " (message) line-end)
+       (warning line-start (file-name) ":" line ":" column ": W" (id (+ (not ?\:) )) ": " (message) line-end)
+       (info line-start (file-name) ":" line ":" column ": C" (id (+ (not ?\:) )) ": " (message) line-end))
+      :modes (gdscript-mode))
+    (add-to-list 'flycheck-checkers 'gdlint))
+#+end_src
+** TreeMacs
+#+begin_src emacs-lisp :tangle yes
+  (use-package treemacs
+    :straight t
+    :ensure t
+    :config
+    (treemacs-follow-mode t)
+    (treemacs-filewatch-mode t)
+    (treemacs-git-mode 'deferred)
+    (setq treemacs-is-never-other-window t
+  	treemacs-width 35
+  	treemacs-silent-refresh t
+  	treemacs-collapse-dirs 3))
+
+  (use-package treemacs-all-the-icons
+    :after treemacs
+    :straight t
+    :config (treemacs-load-theme "all-the-icons"))
+
+  (use-package treemacs-projectile
+    :after (treemacs projectile)
+    :straight t)
+
+  (use-package lsp-treemacs
+    :after treemacs
+    :straight t
+    :config
+    (lsp-treemacs-sync-mode 1))
+#+end_src
 ** 一時設定
 #+begin_src emacs-lisp :tangle yes
   (defun wsl-paste ()
@@ -456,21 +530,18 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     :config
     (minions-mode 1))
 #+end_src
-
 ** スクロールバー
 #+begin_src emacs-lisp :tangle yes
   (scroll-bar-mode -1)
 #+end_src
-
 *** nyancat
 #+begin_src emacs-lisp :tangle yes
-  ;; にゃーん
   (use-package nyan-mode
     :straight t
     :ensure t
     :config
-    (setq nyan-animate-nyancat t)   ;; アニメーションON
-    (setq nyan-bar-length 20)       ;; バーの長さ調整
+    (setq nyan-animate-nyancat t)
+    (setq nyan-bar-length 20)
     (nyan-mode 1))
 #+end_src
 ** footer
