@@ -114,6 +114,28 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
 
 #+end_src
 ** Org
+*** 画像の貼り付け
+#+begin_src emacs-lisp :tangle yes
+  (if IS-WINDOWS
+      (with-eval-after-load 'org
+        (defun org-insert-clipboard-image ()
+  	"Clipboardの画像を ./YYYY-mm-dd-HH-MM-SS.png に保存してリンクを挿入。"
+  	(interactive)
+  	(let* ((filename (concat (format-time-string "img/%Y-%m-%d-%H-%M-%S") ".png"))
+                 (script   (expand-file-name "~/.emacs.d/windows/paste_image.ps1"))
+                 (exit-code
+  		(call-process
+  		 "powershell" nil nil nil
+  		 "-NoProfile" "-NonInteractive" "-ExecutionPolicy" "Bypass" "-STA"
+  		 "-File" script
+  		 "-FileName" filename)))
+  	  (if (and (integerp exit-code) (= exit-code 0) (file-exists-p filename))
+                (progn
+  		(insert (format "[[file:%s]]" filename))
+  		(org-display-inline-images))
+              (user-error "画像の保存に失敗しました (exit=%s)" exit-code))))
+        (define-key org-mode-map (kbd "C-M-y") #'org-insert-clipboard-image)))
+#+end_src
 *** org-super-agenda
 #+begin_src emacs-lisp :tangle yes
   (use-package org-super-agenda
@@ -157,7 +179,6 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
 *** org-module
 #+begin_src emacs-lisp :tangle yes
   (setq org-display-custom-times t)
-
   (setq org-modules
         '(ol-bbdb ol-bibtex ol-docview ol-doi ol-eww ol-gnus ol-info ol-irc
   		ol-mhe ol-rmail org-tempo ol-w3m))
@@ -280,7 +301,7 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
           (concat " " (nerd-icons-faicon "nf-fa-hand_o_right") " " cand)
         (concat "    " cand))))
 #+end_src
-** ligature
+** ligaturen
 *** Ligature
 #+begin_src emacs-lisp :tangle yes
   ;; This assumes you've installed the package via MELPA.
@@ -323,6 +344,23 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     ;; per mode with `ligature-mode'.
     (global-ligature-mode t))
 #+end_src
+** Programming
+*** GDScript
+#+begin_src emacs-lisp :tangle yes
+  (use-package gdscript-mode
+    :straight (gdscript-mode
+               :type git
+               :host github
+               :repo "godotengine/emacs-gdscript-mode"))
+
+#+end_src
+*** LSP
+**** eglot
+#+begin_src emacs-lisp :tangle yes
+
+#+end_src
+**** 
+
 ** 一時設定
 #+begin_src emacs-lisp :tangle yes
   (defun wsl-paste ()
@@ -350,6 +388,20 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     :straight t
     :hook
     (dired-mode . nerd-icons-dired-mode))
+#+end_src
+** スクロール
+#+begin_src emacs-lisp :tangle yes
+  (use-package ultra-scroll
+    :straight(ultra-scroll
+  	    :type git
+  	    :host github
+  	    :repo "jdtsmith/ultra-scroll") ; if desired (emacs>=v30)
+    :init
+    (setq scroll-conservatively 3 ; or whatever value you prefer, since v0.4
+  	scroll-margin 0)	  ; important: scroll-margin>0 not yet supported
+    :config
+    (ultra-scroll-mode 1))
+
 #+end_src
 ** 見た目の設定
 #+begin_src emacs-lisp :tangle yes
@@ -392,7 +444,7 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     (moody-mode-line-height 24)
     :config
     (moody-replace-mode-line-buffer-identification)
-    ;(moody-replace-vc-mode)
+  					;(moody-replace-vc-mode)
     (moody-replace-eldoc-minibuffer-message-function)
     ;; 以下を追加
     (when (eq IS-MAC t)
