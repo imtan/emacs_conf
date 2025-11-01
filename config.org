@@ -302,6 +302,18 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     (("M-g f" . consult-flymake)  ;; M-g f でエラー一覧へ
      ("M-g l" . consult-line)))
 #+end_src
+** Hydra
+#+begin_src emacs-lisp :tangle yes
+  (use-package hydra
+    :straight t)
+#+end_src
+*** Hydra Sample
+#+begin_src emacs-lisp :tangle yes
+  (defhydra hydra-zoom (global-map "<f2>")
+    "zoom"
+    ("g" text-scale-increase "in")
+    ("l" text-scale-decrease "out"))
+#+end_src
 ** ligaturen
 *** Ligature
 #+begin_src emacs-lisp :tangle yes
@@ -352,8 +364,32 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     :straight (gdscript-mode
                :type git
                :host github
-               :repo "godotengine/emacs-gdscript-mode"))
+               :repo "godotengine/emacs-gdscript-mode")
+    :custom
+    (gdscript-use-tab-indents t)
+    (gdscript-indent-offset 4)
+    (gdscript-gdformat-save-and-format t)
+    (gdscript-gdformat-executable "/Users/im_tan/.local/bin/gdformat"))
+
+  ;; gdlint を Flycheck に統合（波線表示）
+  (with-eval-after-load 'flycheck
+    (flycheck-define-checker gdlint
+      "GDScript linter (gdtoolkit)."
+      :command ("gdlint" source)
+      :error-patterns
+      ((error line-start (file-name) ":" line ":" column ": E" (id (+ (not ?\:) )) ": " (message) line-end)
+       (warning line-start (file-name) ":" line ":" column ": W" (id (+ (not ?\:) )) ": " (message) line-end)
+       (info line-start (file-name) ":" line ":" column ": C" (id (+ (not ?\:) )) ": " (message) line-end))
+      :modes (gdscript-mode))
+    (add-to-list 'flycheck-checkers 'gdlint))
+
+  (defhydra gdscript-hydra--main (global-map "<f2>")
+    "zoom"
+    ("g" text-scale-increase "in")
+    ("l" text-scale-decrease "out"))
+
 #+end_src
+**** TODO gdformatのディレクトリを自動化する
 *** LSP
 **** lsp-mode
 #+begin_src emacs-lisp :tangle yes
@@ -393,18 +429,6 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     :straight t
     :ensure t
     :init (global-flycheck-mode))
-
-  ;; gdlint を Flycheck に統合（波線表示）
-  (with-eval-after-load 'flycheck
-    (flycheck-define-checker gdlint
-      "GDScript linter (gdtoolkit)."
-      :command ("gdlint" source)
-      :error-patterns
-      ((error line-start (file-name) ":" line ":" column ": E" (id (+ (not ?\:) )) ": " (message) line-end)
-       (warning line-start (file-name) ":" line ":" column ": W" (id (+ (not ?\:) )) ": " (message) line-end)
-       (info line-start (file-name) ":" line ":" column ": C" (id (+ (not ?\:) )) ": " (message) line-end))
-      :modes (gdscript-mode))
-    (add-to-list 'flycheck-checkers 'gdlint))
 #+end_src
 ** TreeMacs
 #+begin_src emacs-lisp :tangle yes
@@ -507,7 +531,6 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     :ensure t
     :init (doom-modeline-mode 1))
 #+end_src
-
 *** moody-modeline
 #+begin_src emacs-lisp :tangle yes
   (use-package moody
