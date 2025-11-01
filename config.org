@@ -358,6 +358,14 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     (global-ligature-mode t))
 #+end_src
 ** Programming
+*** flycheck
+#+begin_src emacs-lisp :tangle yes
+  ;; Flycheck（全体で有効）
+  (use-package flycheck
+    :straight t
+    :ensure t
+    :init (global-flycheck-mode))
+#+end_src
 *** GDScript
 #+begin_src emacs-lisp :tangle yes
   (use-package gdscript-mode
@@ -421,14 +429,6 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     :bind (:map projectile-mode-map
                 ("s-p" . projectile-command-map)
                 ("C-c p" . projectile-command-map)))
-#+end_src
-*** flycheck
-#+begin_src emacs-lisp :tangle yes
-  ;; Flycheck（全体で有効）
-  (use-package flycheck
-    :straight t
-    :ensure t
-    :init (global-flycheck-mode))
 #+end_src
 ** TreeMacs
 #+begin_src emacs-lisp :tangle yes
