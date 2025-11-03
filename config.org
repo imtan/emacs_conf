@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #+TITLE: config.el
 #+AUTHOR: imtan
 * config.el
@@ -12,6 +13,14 @@
   (defconst IS-MAC (eq system-type 'darwin))
   (defconst IS-LINUX (memq system-type '(gnu gnu/linux gnu/kfreebsd berkeley-unix)))
   (defconst IS-WINDOWS (memq system-type '(cygwin windows-nt ms-dos)))
+#+end_src
+** exec-path-from-shell
+#+begin_src emacs-lisp :tangle yes
+  (use-package exec-path-from-shell
+    :straight t
+    :config
+    (when (memq window-system '(mac ns))
+      (exec-path-from-shell-initialize)))
 #+end_src
 ** straight
 Emacs標準の ~package.el+quelpa~ や ~el-get~ 等を色々試した結果、
@@ -107,27 +116,53 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
 #+end_src
 ** Org
 *** 画像の貼り付け
+OSXやLinuxを使用する場合はpngpasteをインストールする必要がある。
 #+begin_src emacs-lisp :tangle yes
   (if IS-WINDOWS
       (with-eval-after-load 'org
         (defun org-insert-clipboard-image ()
-  	"Clipboardの画像を ./YYYY-mm-dd-HH-MM-SS.png に保存してリンクを挿入。"
-  	(interactive)
-  	(let* ((filename (concat (format-time-string "img/%Y-%m-%d-%H-%M-%S") ".png"))
+    	"Clipboardの画像を ./YYYY-mm-dd-HH-MM-SS.png に保存してリンクを挿入。"
+    	(interactive)
+    	(let* ((filename (concat (format-time-string "img/%Y-%m-%d-%H-%M-%S") ".png"))
                  (script   (expand-file-name "~/.emacs.d/windows/paste_image.ps1"))
                  (exit-code
-  		(call-process
-  		 "powershell" nil nil nil
-  		 "-NoProfile" "-NonInteractive" "-ExecutionPolicy" "Bypass" "-STA"
-  		 "-File" script
-  		 "-FileName" filename)))
-  	  (if (and (integerp exit-code) (= exit-code 0) (file-exists-p filename))
+    		(call-process
+    		 "powershell" nil nil nil
+    		 "-NoProfile" "-NonInteractive" "-ExecutionPolicy" "Bypass" "-STA"
+    		 "-File" script
+    		 "-FileName" filename)))
+    	  (if (and (integerp exit-code) (= exit-code 0) (file-exists-p filename))
                 (progn
-  		(insert (format "[[file:%s]]" filename))
-  		(org-display-inline-images))
+    		(insert (format "[[file:%s]]" filename))
+    		(org-display-inline-images))
               (user-error "画像の保存に失敗しました (exit=%s)" exit-code))))
         (define-key org-mode-map (kbd "C-M-y") #'org-insert-clipboard-image)))
+
+  ;; macOSでクリップボード画像を ./img/YYYY-mm-dd-HH-MM-SS.png に保存して貼り付け
+  (when IS-MAC
+    (with-eval-after-load 'org
+      (defun org-insert-clipboard-image ()
+        "Clipboardの画像を ./img/YYYY-mm-dd-HH-MM-SS.png に保存してリンクを挿入。"
+        (interactive)
+        (unless (executable-find "pngpaste")
+          (user-error "pngpaste が見つかりません。`brew install pngpaste` で入れてください"))
+        (let* ((filename (concat (format-time-string "img/%Y-%m-%d-%H-%M-%S") ".png"))
+               (dir (file-name-directory filename)))
+          (unless (file-directory-p dir)
+            (make-directory dir t))
+          (let ((exit-code (call-process "pngpaste" nil nil nil filename)))
+            (if (and (integerp exit-code) (= exit-code 0) (file-exists-p filename))
+                (progn
+                  (insert (format "[[file:%s]]" filename))
+                  ;; 既存のインライン画像を更新
+                  (org-display-inline-images))
+              (user-error "画像の保存に失敗しました (exit=%s). クリップボードに画像がありますか？" exit-code)))))
+      (define-key org-mode-map (kbd "C-M-y") #'org-insert-clipboard-image)))
 #+end_src
+
+#+RESULTS:
+: org-insert-clipboard-image
+
 *** org-super-agenda
 #+begin_src emacs-lisp :tangle yes
   (use-package org-super-agenda
@@ -178,7 +213,7 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
   (setq org-startup-indented t)
   (setq org-timestamp-custom-formats
         '("<%Y年%m月%d日(%a)>" . "<%Y年%m月%d日(%a)%H時%M分>"))
-#+end_src
+  #+end_src
 *** org-roam
 #+begin_src emacs-lisp :tangle yes
   (use-package org-roam
@@ -200,8 +235,87 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     (setq org-roam-node-display-template (concat "${title:*} " (propertize "${tags:10}" 'face 'org-tag)))
     (org-roam-db-autosync-mode)
     ;; If using org-roam-protocol
-    (require 'org-roam-protocol))
+    (require 'org-roam-protocol)
+    (setq org-roam-capture-templates
+     '(("z" "🌱 Zettelkasten" plain "%?"
+        :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			 "\n#+date: %T\n#+title:🌱${title}\n#+filetags: :ZETTEL:\n")
+        :unnarrowed t)
+       ("w" "📝 Wiki" plain "%?"
+        :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			 "#+title:📝${title}\n#+filetags: :WIKI:\n")
+        :unnarrowed t)
+       ("t" "🔖 Tag" plain "%?"
+        :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			 "#+title:🔖${title}\n#+filetags: :TAG:\n")
+        :unnarrowed t)
+       ("h" "👨 Person" plain "%?"
+        :target (file+head
+                 "%<%Y%m%d%H%M%S>.org"
+                 "#+title:👨${title}\n#+filetags: :PERSON:\n")
+        :unnarrowed t)
+       ("f" "📂 TOC" plain "%?"
+        :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			 "#+title:📂${title}\n#+filetags: :INDEX:\n")
+        :unnarrowed t)
+       ("m" "🌳 MOC" plain "%?"
+        :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			 "#+title:🌳${title}\n#+filetags: :MOC:\n")
+        :unnarrowed t)
+       ("i" "✅ Issue" plain "%?"
+        :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			 "#+title:✅${title}\n#+filetags: :ISSUE:\n")
+        :unnarrowed t)
+       ("p" "🎓 Pattern" plain "%?"
+        :target (file+head
+  	       "%<%Y%m%d%H%M%S>.org"
+                 "#+title:🎓${title}\n#+filetags: :CONCEPT:\n")
+        :unnarrowed t)
+       ("d" "🗒 DOC" plain "%?"
+        :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			 "#+title:🗒${title}\n#+filetags: :DOC:\n")
+        :unnarrowrd t)
+       ("k" "🦊 Darkfox" plain "%?"
+        :target (file+head
+                 "%<%Y%m%d%H%M%S>.org"
+                 "#+title:🦊${title}\n#+filetags: :DARKFOX:\n")
+        :unnarrowed t)
+       ("b" "📚 Book" plain
+        "%?
+
+  - title: %^{title}
+  - authors: %^{author}
+  - date: %^{date}
+  - publisher: %^{publisher}
+  - url: http://www.amazon.co.jp/dp/%^{isbn}
+  "
+        :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			 "#+title:📚${title} - ${author}(${date})\n#+filetags: :BOOK:SOURCE:\n")
+        :unnarrowed t)
+       ("s" "🎙‍ Talk" plain
+        "%?
+
+  - title: %^{title}
+  - url: %^{url}
+  "
+        :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			 "#+title:🎙 ${title} - ${editor}(${date})\n#+filetags: :TALK:SOURCE:\n")
+        :unnarrowed t)
+       ("o" "💻 Online" plain
+        "%?
+
+  - title: %^{title}
+  - authors: %^{author}
+  - url: %^{url}
+  "
+        :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			 "#+title:💻${title}\n#+filetags: :ONLINE:SOURCE:\n")
+        :unnarrowed t))))
 #+end_src
+
+#+RESULTS:
+: org-roam-tag-add
+
 *** org-roam-ui
 #+begin_src emacs-lisp :tangle yes
   (use-package org-roam-ui
@@ -214,6 +328,10 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
           org-roam-ui-update-on-save t
           org-roam-ui-open-on-start t))
 #+end_src
+
+#+RESULTS:
+| org-roam-ui-mode | vertico-multiform-mode | org-persist-load-all | dashboard-insert-startupify-lists | #[0 \300\301!\210\302\303!\207 [mouse-wheel-mode 0 mac-mouse-wheel-mode 1] 2] | #[0 \301\236A@\211\205 \302\303"?\262\205  \304\305 !\306=\205  \307\305 !\207 [mac-startup-options command-line string-match \`-psn_ frame-visible-p selected-frame t x-focus-frame] 4] | mac-process-deferred-apple-events | tramp-register-archive-autoload-file-name-handler | (lambda nil (when (and (symbol-value 'init-file-user) skk-preload) (skk-preload) (message SKK preload...done)) (when window-system (ccc-setup))) | #[nil \302J\203 \203 \300 \210\303\304!\210	\205 \305 \207 [skk-preload window-system init-file-user message SKK preload...done ccc-setup] 2] | magit-maybe-define-global-key-bindings |
+
 *** org-modern
 #+begin_src emacs-lisp :tangle yes
   (use-package org-modern
@@ -293,6 +411,17 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
           (concat " " (nerd-icons-faicon "nf-fa-hand_o_right") " " cand)
         (concat "    " cand))))
 #+end_src
+** orderless
+#+begin_src emacs-lisp :tangle yes
+  (use-package orderless
+    :straight t
+    :custom
+    (completion-styles '(orderless basic))
+    (completion-category-overrides '((file (styles basic partial-completion)))))
+#+end_src
+
+#+RESULTS:
+
 ** consult
 #+begin_src emacs-lisp :tangle yes
   (use-package consult
@@ -356,6 +485,12 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     ;; Enables ligature checks globally in all buffers. You can also do it
     ;; per mode with `ligature-mode'.
     (global-ligature-mode t))
+#+end_src
+** コンソール
+*** eat
+#+begin_src emacs-lisp :tangle yes
+  (use-package eat
+    :straight t)
 #+end_src
 ** Programming
 *** flycheck
