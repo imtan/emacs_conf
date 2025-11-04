@@ -23,14 +23,6 @@
 
 #+RESULTS:
 
-** exec-path-from-shell
-#+begin_src emacs-lisp :tangle yes
-  (use-package exec-path-from-shell
-    :straight t
-    :config
-    (when (memq window-system '(mac ns))
-      (exec-path-from-shell-initialize)))
-#+end_src
 ** straight
 Emacs標準の ~package.el+quelpa~ や ~el-get~ 等を色々試した結果、
 たどり着いたパッケージマネージャー。
@@ -46,6 +38,16 @@ Emacs標準の ~package.el+quelpa~ や ~el-get~ 等を色々試した結果、
 ** use-package
 #+begin_src emacs-lisp :tangle yes
   (straight-use-package 'use-package)
+  ;; Enable :straight keyword support in use-package
+  (setq straight-use-package-by-default t)
+#+end_src
+** exec-path-from-shell
+#+begin_src emacs-lisp :tangle yes
+  (use-package exec-path-from-shell
+    :straight t
+    :config
+    (when (memq window-system '(mac ns))
+      (exec-path-from-shell-initialize)))
 #+end_src
 ** bind-key
 #+begin_src emacs-lisp :tangle yes
@@ -478,7 +480,8 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
     :ensure t)
 
   (use-package vertico-multiform
-    :ensure nil
+    :straight nil  ; Part of vertico, not a separate package
+    :after vertico
     :hook (after-init . vertico-multiform-mode)
     :init
     (setq vertico-multiform-commands
@@ -684,6 +687,7 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
   (use-package lsp-treemacs
     :after treemacs
     :straight t
+    :defines (treemacs-define-doubleclick-action)
     :config
     (lsp-treemacs-sync-mode 1))
 #+end_src
