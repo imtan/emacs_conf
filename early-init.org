@@ -10,6 +10,10 @@
   ;;; Commentary:
   ;;; Code:
 #+end_src
+** debug
+#+begin_src emacs-lisp :tangle yes
+  (setq debug-on-error t)
+#+end_src
 
 ** package.elを起動しない
 #+begin_src emacs-lisp :tangle yes
