@@ -14,6 +14,15 @@
   (defconst IS-LINUX (memq system-type '(gnu gnu/linux gnu/kfreebsd berkeley-unix)))
   (defconst IS-WINDOWS (memq system-type '(cygwin windows-nt ms-dos)))
 #+end_src
+** フォント設定
+#+begin_src emacs-lisp :tangle yes
+  (when (member "Segoe UI Emoji" (font-family-list))
+    (set-fontset-font t 'emoji  (font-spec :family "Segoe UI Emoji") nil 'prepend)
+    (set-fontset-font t 'symbol (font-spec :family "Segoe UI Emoji") nil 'prepend))
+#+end_src
+
+#+RESULTS:
+
 ** exec-path-from-shell
 #+begin_src emacs-lisp :tangle yes
   (use-package exec-path-from-shell
@@ -115,6 +124,7 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
 
 #+end_src
 ** Org
+
 *** 画像の貼り付け
 OSXやLinuxを使用する場合はpngpasteをインストールする必要がある。
 #+begin_src emacs-lisp :tangle yes
@@ -213,7 +223,7 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
   (setq org-startup-indented t)
   (setq org-timestamp-custom-formats
         '("<%Y年%m月%d日(%a)>" . "<%Y年%m月%d日(%a)%H時%M分>"))
-  #+end_src
+#+end_src
 *** org-roam
 #+begin_src emacs-lisp :tangle yes
   (use-package org-roam
@@ -237,51 +247,51 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
     ;; If using org-roam-protocol
     (require 'org-roam-protocol)
     (setq org-roam-capture-templates
-     '(("z" "🌱 Zettelkasten" plain "%?"
-        :target (file+head "%<%Y%m%d%H%M%S>.org"
-  			 "\n#+date: %T\n#+title:🌱${title}\n#+filetags: :ZETTEL:\n")
-        :unnarrowed t)
-       ("w" "📝 Wiki" plain "%?"
-        :target (file+head "%<%Y%m%d%H%M%S>.org"
-  			 "#+title:📝${title}\n#+filetags: :WIKI:\n")
-        :unnarrowed t)
-       ("t" "🔖 Tag" plain "%?"
-        :target (file+head "%<%Y%m%d%H%M%S>.org"
-  			 "#+title:🔖${title}\n#+filetags: :TAG:\n")
-        :unnarrowed t)
-       ("h" "👨 Person" plain "%?"
-        :target (file+head
-                 "%<%Y%m%d%H%M%S>.org"
-                 "#+title:👨${title}\n#+filetags: :PERSON:\n")
-        :unnarrowed t)
-       ("f" "📂 TOC" plain "%?"
-        :target (file+head "%<%Y%m%d%H%M%S>.org"
-  			 "#+title:📂${title}\n#+filetags: :INDEX:\n")
-        :unnarrowed t)
-       ("m" "🌳 MOC" plain "%?"
-        :target (file+head "%<%Y%m%d%H%M%S>.org"
-  			 "#+title:🌳${title}\n#+filetags: :MOC:\n")
-        :unnarrowed t)
-       ("i" "✅ Issue" plain "%?"
-        :target (file+head "%<%Y%m%d%H%M%S>.org"
-  			 "#+title:✅${title}\n#+filetags: :ISSUE:\n")
-        :unnarrowed t)
-       ("p" "🎓 Pattern" plain "%?"
-        :target (file+head
-  	       "%<%Y%m%d%H%M%S>.org"
-                 "#+title:🎓${title}\n#+filetags: :CONCEPT:\n")
-        :unnarrowed t)
-       ("d" "🗒 DOC" plain "%?"
-        :target (file+head "%<%Y%m%d%H%M%S>.org"
-  			 "#+title:🗒${title}\n#+filetags: :DOC:\n")
-        :unnarrowrd t)
-       ("k" "🦊 Darkfox" plain "%?"
-        :target (file+head
-                 "%<%Y%m%d%H%M%S>.org"
-                 "#+title:🦊${title}\n#+filetags: :DARKFOX:\n")
-        :unnarrowed t)
-       ("b" "📚 Book" plain
-        "%?
+  	'(("z" "🌱 Zettelkasten" plain "%?"
+  	   :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			      "\n#+date: %T\n#+title:${title}\n#+filetags:\n")
+  	   :unnarrowed t)
+  	  ("w" "📝 Wiki" plain "%?"
+  	   :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			      "#+title:📝${title}\n#+filetags: :WIKI:\n")
+  	   :unnarrowed t)
+  	  ("t" "🔖 Tag" plain "%?"
+  	   :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			      "#+title:🔖${title}\n#+filetags: :TAG:\n")
+  	   :unnarrowed t)
+  	  ("h" "👨 Person" plain "%?"
+  	   :target (file+head
+  		    "%<%Y%m%d%H%M%S>.org"
+  		    "#+title:👨${title}\n#+filetags: :PERSON:\n")
+  	   :unnarrowed t)
+  	  ("f" "📂 TOC" plain "%?"
+  	   :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			      "#+title:📂${title}\n#+filetags: :INDEX:\n")
+  	   :unnarrowed t)
+  	  ("m" "🌳 MOC" plain "%?"
+  	   :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			      "#+title:🌳${title}\n#+filetags: :MOC:\n")
+  	   :unnarrowed t)
+  	  ("i" "✅ Issue" plain "%?"
+  	   :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			      "#+title:✅${title}\n#+filetags: :ISSUE:\n")
+  	   :unnarrowed t)
+  	  ("p" "🎓 Pattern" plain "%?"
+  	   :target (file+head
+  		    "%<%Y%m%d%H%M%S>.org"
+  		    "#+title:🎓${title}\n#+filetags: :CONCEPT:\n")
+  	   :unnarrowed t)
+  	  ("d" "🗒 DOC" plain "%?"
+  	   :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			      "#+title:🗒${title}\n#+filetags: :DOC:\n")
+  	   :unnarrowrd t)
+  	  ("k" "🦊 Darkfox" plain "%?"
+  	   :target (file+head
+  		    "%<%Y%m%d%H%M%S>.org"
+  		    "#+title:🦊${title}\n#+filetags: :DARKFOX:\n")
+  	   :unnarrowed t)
+  	  ("b" "📚 Book" plain
+  	   "%?
 
   - title: %^{title}
   - authors: %^{author}
@@ -289,28 +299,28 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
   - publisher: %^{publisher}
   - url: http://www.amazon.co.jp/dp/%^{isbn}
   "
-        :target (file+head "%<%Y%m%d%H%M%S>.org"
-  			 "#+title:📚${title} - ${author}(${date})\n#+filetags: :BOOK:SOURCE:\n")
-        :unnarrowed t)
-       ("s" "🎙‍ Talk" plain
-        "%?
+  	   :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			      "#+title:📚${title} - ${author}(${date})\n#+filetags: :BOOK:SOURCE:\n")
+  	   :unnarrowed t)
+  	  ("s" "🎙‍ Talk" plain
+  	   "%?
 
   - title: %^{title}
   - url: %^{url}
   "
-        :target (file+head "%<%Y%m%d%H%M%S>.org"
-  			 "#+title:🎙 ${title} - ${editor}(${date})\n#+filetags: :TALK:SOURCE:\n")
-        :unnarrowed t)
-       ("o" "💻 Online" plain
-        "%?
+  	   :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			      "#+title:🎙 ${title} - ${editor}(${date})\n#+filetags: :TALK:SOURCE:\n")
+  	   :unnarrowed t)
+  	  ("o" "💻 Online" plain
+  	   "%?
 
   - title: %^{title}
   - authors: %^{author}
   - url: %^{url}
   "
-        :target (file+head "%<%Y%m%d%H%M%S>.org"
-  			 "#+title:💻${title}\n#+filetags: :ONLINE:SOURCE:\n")
-        :unnarrowed t))))
+  	   :target (file+head "%<%Y%m%d%H%M%S>.org"
+  			      "#+title:💻${title}\n#+filetags: :ONLINE:SOURCE:\n")
+  	   :unnarrowed t))))
 #+end_src
 
 #+RESULTS:
@@ -362,6 +372,89 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
     :config (setq org-bullets-bullet-list '("" "" "" "" "" "" "" "" "" ""))
     :hook (org-mode . org-bullets-mode))
 #+end_src
+*** org-journal
+#+begin_src emacs-lisp :tangle yes
+  (use-package org-journal
+    :ensure t
+    :defer t
+    :bind
+    ("\C-cj" . org-journal-new-entry)
+    :custom
+    (org-journal-dir "~/Dropbox/Org/journal")
+    (org-journal-date-format "%A, %d %B %Y")
+    (org-journal-time-format "%R\n\n")
+    (org-journal-file-format "%Y%m%d.org"))
+#+end_src
+
+#+RESULTS:
+: org-journal-new-entry
+
+*** org-captrue
+#+begin_src emacs-lisp :tangle yes
+  ;; org-capture
+  ;; キーバインドの設定
+  (global-set-key (kbd "C-c c") 'org-capture)
+  ;;ファイルパスの設定
+  (setq work-directory "~/Dropbox/Org/capture/")
+  (setq taskfile (concat work-directory "tasks.org"))
+  (setq listfile (concat work-directory "list100.org"))
+  (setq org-capture-templates
+        '(
+    	;; タスク（スケジュールなし）
+    	("t" "タスク（スケジュールなし）" entry (file+headline taskfile "Tasks")
+    	 "** TODO %? \n")
+    	;; タスク（スケジュールあり）
+    	("s" "タスク（スケジュールあり）" entry (file+headline taskfile "Tasks")
+    	 "** TODO %? \n   SCHEDULED: %^t \n")
+          ("l" "やりたいこと" checkitem (file+headline listfile "やりたいこと")
+    	 "[ ] %? \n")
+          ("b" "欲しいもの" checkitem (file+headline listfile "欲しいもの")
+    	 "[ ] %? \n")
+          ("g" "行きたいところ" checkitem (file+headline listfile "行きたいところ")
+    	 "[ ] %? \n")
+    	("i" "Inbox にエントリー" entry (file+headline taskfile "Tasks")
+           "* TODO %? %^G %t\n** Ready の定義\n- Why?, Goal, How? が埋められていること\n- How がある程度具体的に書かれていること\n** Why?\n** Info\n** Goal\n** How?\n** Result\n\t")))
+
+#+end_src
+
+*** mpvで再生する
+mpvをダウンロードする必要あり。
+下記はWindowsの設定
+#+begin_src shell :tangle no
+# フォルダ作成
+New-Item -Path "$env:APPDATA\mpv" -ItemType Directory -Force
+
+# 設定ファイル作成
+@"
+ytdl=yes
+script-opts=ytdl_hook-ytdl_path=yt-dlp
+"@ | Out-File -FilePath "$env:APPDATA\mpv\mpv.conf" -Encoding utf8
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(defun my/open-youtube-choose-method (url &rest args)
+  "Ask how to open YouTube URLs."
+  (if (string-match-p "https?://\\(www\\.\\)?\\(youtube\\.com\\|youtu\\.be\\)" url)
+      (let ((choice (completing-read "Open with: "
+                                     '("mpv" "mpv-visualizer" "browser")
+                                     nil t)))
+        (cond
+         ((string= choice "mpv")
+          (start-process "mpv" nil "mpv" "--volume=70" url))
+         ((string= choice "mpv-visualizer")
+          (start-process "mpv" nil "mpv"
+                         "--background=0/0/0"
+                         "--lavfi-complex=[aid1]asplit[ao][a1];[a1]showwaves=s=1920x1080:mode=cline:colors=FF00FF|00FFFF[vo]"
+                         url))
+         (t (browse-url-default-browser url))))
+    (browse-url-default-browser url)))
+
+(setq browse-url-browser-function #'my/open-youtube-choose-method)
+#+end_src
+
+#+RESULTS:
+: my/open-youtube-choose-method
+
 ** vertico
 #+begin_src emacs-lisp :tangle yes
   (use-package vertico
