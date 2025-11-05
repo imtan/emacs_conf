@@ -661,6 +661,25 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
                 ("s-p" . projectile-command-map)
                 ("C-c p" . projectile-command-map)))
 #+end_src
+*** Ruby
+#+begin_src emacs-lisp :tangle yes
+  (use-package inf-ruby
+    :straight t
+    :config
+    (add-hook 'after-init-hook 'inf-ruby-switch-setup)
+    (add-hook 'compilation-filter-hook 'inf-ruby-auto-enter-and-focus)
+    (add-hook 'ruby-base-mode 'inf-ruby-minor-mode)
+    (inf-ruby-enable-auto-breakpoint))
+#+end_src
+*** Rails
+#+begin_src emacs-lisp :tangle yes
+  (use-package projectile-rails
+    :straight t
+    :hook ((projectile-mode-hook . projectile-rails-on)))
+    #+end_src
+
+#+RESULTS:
+
 ** TreeMacs
 #+begin_src emacs-lisp :tangle yes
   (use-package treemacs
