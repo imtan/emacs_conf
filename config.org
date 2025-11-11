@@ -69,10 +69,6 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
 
 *** DDSKK
 #+begin_src emacs-lisp :tangle yes
-  (defun my-enable-skk-mode ()
-    "新しいバッファで自動的にSKKモードを有効にし、ローマ字入力モードにする。"
-    (skk-mode 1)
-    (skk-latin-mode 1))
 
   (use-package ddskk
     :straight (ddskk :host github :repo "skk-dev/ddskk")
@@ -94,6 +90,11 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
 
   (add-hook 'find-file-hook 'my-enable-skk-mode)
   (add-hook 'after-change-major-mode-hook 'my-enable-skk-mode)
+  (defun my-enable-skk-mode ()
+    "新しいバッファで自動的にSKKモードを有効にし、ローマ字入力モードにする。"
+    (skk-mode 1)
+    (skk-latin-mode 1))
+
 #+end_src
 
 ** dashboard
