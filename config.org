@@ -378,7 +378,7 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
 *** org-journal
 #+begin_src emacs-lisp :tangle yes
   (use-package org-journal
-    :ensure t
+    :straight t
     :defer t
     :bind
     ("\C-cj" . org-journal-new-entry)
@@ -819,6 +819,12 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
     (setq nyan-bar-length 20)
     (nyan-mode 1))
 #+end_src
+** elpher
+#+begin_src emacs-lisp :tangle yes
+  (use-package elpher
+    :straight t)
+#+end_src
+
 ** footer
 #+begin_src emacs-lisp :tangle yes
   (provide 'config)
