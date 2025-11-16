@@ -8,20 +8,20 @@
   ;;; Commentary:
   ;;; Code:
 #+end_src
+
 ** OS判定用定数
 #+begin_src emacs-lisp :tangle yes
   (defconst IS-MAC (eq system-type 'darwin))
   (defconst IS-LINUX (memq system-type '(gnu gnu/linux gnu/kfreebsd berkeley-unix)))
   (defconst IS-WINDOWS (memq system-type '(cygwin windows-nt ms-dos)))
 #+end_src
+
 ** フォント設定
 #+begin_src emacs-lisp :tangle yes
   (when (member "Segoe UI Emoji" (font-family-list))
     (set-fontset-font t 'emoji  (font-spec :family "Segoe UI Emoji") nil 'prepend)
     (set-fontset-font t 'symbol (font-spec :family "Segoe UI Emoji") nil 'prepend))
 #+end_src
-
-#+RESULTS:
 
 ** straight
 Emacs標準の ~package.el+quelpa~ や ~el-get~ 等を色々試した結果、
@@ -41,6 +41,7 @@ Emacs標準の ~package.el+quelpa~ や ~el-get~ 等を色々試した結果、
   ;; Enable :straight keyword support in use-package
   (setq straight-use-package-by-default t)
 #+end_src
+
 ** exec-path-from-shell
 #+begin_src emacs-lisp :tangle yes
   (use-package exec-path-from-shell
@@ -49,6 +50,7 @@ Emacs標準の ~package.el+quelpa~ や ~el-get~ 等を色々試した結果、
     (when (memq window-system '(mac ns))
       (exec-path-from-shell-initialize)))
 #+end_src
+
 ** bind-key
 #+begin_src emacs-lisp :tangle yes
   (use-package bind-key
@@ -106,13 +108,22 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     (add-hook 'elpaca-after-init-hook #'dashboard-insert-startupify-lists)
     (add-hook 'elpaca-after-init-hook #'dashboard-initialize)
     (dashboard-setup-startup-hook))
+  (setq dashboard-startup-banner "~/.emacs.d/ascii-banner.txt")
+  ;; タイトル文字列（いらなければ空文字でもOK）
+  (setq dashboard-banner-logo-title "I’m talking about the present.")
 
+  ;; 真ん中寄せしたい場合
+  (setq dashboard-center-content t)
+  (set-face-attribute 'dashboard-text-banner nil
+                      :family "Iosevka"
+                      :height 100)
   (setq dashboard-items '((recents  . 5)
-                          (bookmarks . 5)
-                          (projects . 5)
-                          (agenda . 5)
-                          (registers . 5)))
+  			(bookmarks . 5)
+  			(projects . 5)
+  			(agenda . 5)
+  			(registers . 5)))
 #+end_src
+
 ** magit
 #+begin_src emacs-lisp :tangle yes
   ;; Magitのインストールと設定
@@ -326,9 +337,6 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
   	   :unnarrowed t))))
 #+end_src
 
-#+RESULTS:
-: org-roam-tag-add
-
 *** org-roam-ui
 #+begin_src emacs-lisp :tangle yes
   (use-package org-roam-ui
@@ -385,7 +393,7 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
     :custom
     (org-journal-dir "~/Dropbox/Org/journal")
     (org-journal-date-format "%A, %d %B %Y")
-    (org-journal-time-format "%R\n\n")
+    (org-journal-time-format "%R\n")
     (org-journal-file-format "%Y%m%d.org"))
 #+end_src
 
@@ -454,9 +462,6 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 
 (setq browse-url-browser-function #'my/open-youtube-choose-method)
 #+end_src
-
-#+RESULTS:
-: my/open-youtube-choose-method
 
 ** vertico
 #+begin_src emacs-lisp :tangle yes
@@ -824,6 +829,8 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
   (use-package elpher
     :straight t)
 #+end_src
+
+#+RESULTS:
 
 ** footer
 #+begin_src emacs-lisp :tangle yes
