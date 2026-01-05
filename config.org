@@ -138,6 +138,12 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
 
 #+end_src
 ** Org
+*** org-padding
+#+begin_src emacs-lisp :tangle yes
+  (use-package org-padding
+    :straight (org-padding :host github :repo "TonCherAmi/org-padding" ))
+    (setq org-padding-block-begin-line-padding '(2.0 . nil))
+#+end_src
 
 *** 画像の貼り付け
 OSXやLinuxを使用する場合はpngpasteをインストールする必要がある。
@@ -760,11 +766,12 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 #+end_src
 ** 見た目の設定
 #+begin_src emacs-lisp :tangle yes
-  (load-theme 'modus-vivendi t)
+    (load-theme 'modus-vivendi t)
 
-  (set-frame-font "Iosevka NFM ExtraLight-16" nil t)
-  (set-fontset-font t 'unicode "Iosevka NFM ExtraLight-16" nil 'prepend)
-  (set-fontset-font t 'unicode (font-spec :family "github-octicons") nil 'append)
+    (set-frame-font "Iosevka NFM ExtraLight-16" nil t)
+    (set-fontset-font t 'unicode "Iosevka NFM ExtraLight-16" nil 'prepend)
+    (set-fontset-font t 'unicode (font-spec :family "github-octicons") nil 'append)
+  (modify-all-frames-parameters '((internal-border-width . 32)))
 #+end_src
 ** all-the-icon
 #+begin_src emacs-lisp :tangle yes
