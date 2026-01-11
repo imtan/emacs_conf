@@ -385,16 +385,36 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
 #+end_src
 *** org-journal
 #+begin_src emacs-lisp :tangle yes
-  (use-package org-journal
-    :straight t
-    :defer t
-    :bind
-    ("\C-cj" . org-journal-new-entry)
-    :custom
-    (org-journal-dir "~/Dropbox/Org/journal")
-    (org-journal-date-format "%A, %d %B %Y")
-    (org-journal-time-format "%R\n")
-    (org-journal-file-format "%Y%m%d.org"))
+(use-package org-journal
+  :straight t
+  :defer t
+  :bind
+  ("C-c j" . org-journal-new-entry)
+  :custom
+  (org-journal-dir "~/Dropbox/Org/journal")
+  (org-journal-date-format "%A, %d %B %Y")
+  (org-journal-time-format "%R\n")
+  (org-journal-file-format "%Y%m%d.org")
+  (org-journal-file-header
+   "#+title: %Y-%m-%d Journal\n#+startup: folded\n\n")
+  :config
+  (defun my/org-journal-insert-daily-template ()
+    "その日の最初のエントリ作成時のみテンプレートを挿入。"
+    (save-excursion
+      ;; ファイル全体で「今日の出来事」があるか確認
+      (goto-char (point-min))
+      (unless (re-search-forward "^\\*\\* 今日の出来事" nil t)
+        ;; 最初のレベル1見出し（日付見出し）を探す
+        (goto-char (point-min))
+        (when (re-search-forward "^\\* " nil t)
+          (end-of-line)
+          (insert "\n"
+                  "** 体調\n\n"
+                  "** 気分\n\n"
+                  "** 気づき\n\n"
+                  "** 今日の出来事\n")))))
+  :hook
+  (org-journal-after-entry-create . my/org-journal-insert-daily-template))
 #+end_src
 
 #+RESULTS:
