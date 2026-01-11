@@ -391,36 +391,38 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
 #+end_src
 *** org-journal
 #+begin_src emacs-lisp :tangle yes
-(use-package org-journal
-  :straight t
-  :defer t
-  :bind
-  ("C-c j" . org-journal-new-entry)
-  :custom
-  (org-journal-dir "~/Dropbox/Org/journal")
-  (org-journal-date-format "%A, %d %B %Y")
-  (org-journal-time-format "%R\n")
-  (org-journal-file-format "%Y%m%d.org")
-  (org-journal-file-header
-   "#+title: %Y-%m-%d Journal\n#+startup: folded\n\n")
-  :config
-  (defun my/org-journal-insert-daily-template ()
-    "その日の最初のエントリ作成時のみテンプレートを挿入。"
-    (save-excursion
-      ;; ファイル全体で「今日の出来事」があるか確認
-      (goto-char (point-min))
-      (unless (re-search-forward "^\\*\\* 今日の出来事" nil t)
-        ;; 最初のレベル1見出し（日付見出し）を探す
+  (use-package org-journal
+    :straight t
+    :defer t
+    :bind
+    ("C-c j" . org-journal-new-entry)
+    :custom
+    (org-journal-dir "~/Dropbox/Org/journal")
+    (org-journal-date-format "%A, %d %B %Y")
+    (org-journal-time-format "%R\n")
+    (org-journal-file-format "%Y%m%d.org")
+    (org-journal-file-header
+     "#+title: %Y-%m-%d Journal\n#+startup: folded\n\n")
+    :config
+    (defun my/org-journal-insert-daily-template ()
+      "その日の最初のエントリ作成時のみテンプレートを挿入。"
+      (save-excursion
+        ;; ファイル全体で「今日の出来事」があるか確認
         (goto-char (point-min))
-        (when (re-search-forward "^\\* " nil t)
-          (end-of-line)
-          (insert "\n"
-                  "** 体調\n\n"
-                  "** 気分\n\n"
-                  "** 気づき\n\n"
-                  "** 今日の出来事\n")))))
-  :hook
-  (org-journal-after-entry-create . my/org-journal-insert-daily-template))
+        (unless (re-search-forward "^\\*\\* 今日の出来事" nil t)
+          ;; 最初のレベル1見出し（日付見出し）を探す
+          (goto-char (point-min))
+          (when (re-search-forward "^\\* " nil t)
+            (end-of-line)
+            (insert "\n"
+  		  "** 今日の一枚\n\n"
+  		  "** 今日の一曲\n\n"
+  		  "** 体調\n\n"
+                    "** 気分\n\n"
+                    "** 気づき\n\n"
+                    "** 今日の出来事\n")))))
+    :hook
+    (org-journal-after-entry-create . my/org-journal-insert-daily-template))
 #+end_src
 
 #+RESULTS:
@@ -617,9 +619,50 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 ** コンソール
 *** eat
 #+begin_src emacs-lisp :tangle yes
-  (use-package eat
-    :straight t)
+(use-package eat
+  :straight (:type git
+                   :host codeberg
+                   :repo "akib/emacs-eat"
+                   :files ("*.el" ("term" "term/*.el") "*.texi"
+                           "*.ti" ("terminfo/e" "terminfo/e/*")
+                           ("terminfo/65" "terminfo/65/*")
+                           ("integration" "integration/*")
+                           (:exclude ".dir-locals.el" "*-tests.el"))))
 #+end_src
+
+#+RESULTS:
+*** inheritenv
+#+begin_src emacs-lisp :tangle yes
+  (use-package inheritenv
+  :straight (:type git :host github :repo "purcell/inheritenv"))
+#+end_src
+
+#+RESULTS:
+
+*** claudecode
+#+begin_src emacs-lisp :tangle yes
+  (straight-use-package
+   '(monet :type git :host github :repo "stevemolitor/monet"))
+  ;; install claude-code.el, using :depth 1 to reduce download size:
+  (use-package claude-code
+    :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main" :depth 1
+                     :files ("*.el" (:exclude "images/*")))
+    :bind-keymap
+    ("C-c c" . claude-code-command-map) ;; or your preferred key
+    ;; Optionally define a repeat map so that "M" will cycle thru Claude auto-accept/plan/confirm modes after invoking claude-code-cycle-mode / C-c M.
+    :bind
+    (:repeat-map my-claude-code-map ("M" . claude-code-cycle-mode))
+    :config
+    ;; optional IDE integration with Monet
+    (add-hook 'claude-code-process-environment-functions #'monet-start-server-function)
+    (monet-mode 1)
+
+    (claude-code-mode))
+  #+end_src
+
+#+RESULTS:
+: claude-code-cycle-mode
+
 ** Programming
 *** flycheck
 #+begin_src emacs-lisp :tangle yes
@@ -793,6 +836,10 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
     (set-fontset-font t 'unicode (font-spec :family "github-octicons") nil 'append)
   (modify-all-frames-parameters '((internal-border-width . 32)))
 #+end_src
+
+#+RESULTS:
+: ((vertical-scroll-bars) (internal-border-width . 32))
+
 ** all-the-icon
 #+begin_src emacs-lisp :tangle yes
   (use-package all-the-icons
