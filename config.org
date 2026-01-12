@@ -200,7 +200,34 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
     :ensure t
     :after org
     :config
-    (org-super-agenda-mode 1))
+    (org-super-agenda-mode 1)
+    (setq org-agenda-custom-commands
+          '(("d" "Daily dashboard"
+             ((agenda "" ((org-agenda-span 1)
+                          ;; ここで記事のように特定の見た目を強制することも可能
+                          (org-agenda-start-day nil)))
+              (alltodo ""
+                       ((org-agenda-overriding-header "")
+                        (org-super-agenda-groups
+                         '(
+                           (:name "🔥 最重要"
+                                  :priority "A")
+                           (:name "📅 今日やる"
+                                  :time-grid t
+                                  :scheduled today)
+                           (:name "🎮 ゲーム制作"
+                                  :tag "game")
+                           (:name "✍️ 執筆・思考"
+                                  :tag "write")
+                           (:name "🧠 研究・学習"
+                                  :tag "study")
+                           (:name "🩺 体調・生活"
+                                  :tag "health")
+                           (:name "🧹 雑務"
+                                  :tag "life")
+                           (:discard (:anything t)))))))))))
+#+end_src
+
 #+end_src
 *** org-agenda
 #+begin_src emacs-lisp :tangle yes
@@ -489,6 +516,10 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
     (browse-url-default-browser url)))
 
 (setq browse-url-browser-function #'my/open-youtube-choose-method)
+#+end_src
+*** インラインでイメージを表示する
+#+begin_src emacs-lisp :tangle yes
+  (setq org-startup-with-inline-images t)
 #+end_src
 
 ** vertico
