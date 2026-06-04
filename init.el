@@ -2,12 +2,33 @@
 ;;; Commentary:
 ;;; Code:
 
-;; ファイルの生成（elcでは実行されない）
-;; Note: Byte compilation is skipped here because packages need to be installed first
-(eval-when-compile
-  (require 'org)
-  (org-babel-tangle-file (expand-file-name "early-init.org" user-emacs-directory))
-  (org-babel-tangle-file (expand-file-name "config.org" user-emacs-directory)))
+;; config.org / early-init.org を起動時に tangle して .el を生成する。
+;; .el が無い、または .org の方が新しいときだけ実行するので、
+;; 新規マシン(Windows等)でも config.org から確実に生成され、編集も即反映される。
+(require 'org)
+
+(defun my/tangle-if-needed (base)
+  "BASE.org を、対応する BASE.el が無い/古いときだけ tangle する。"
+  (let ((org (expand-file-name (concat base ".org") user-emacs-directory))
+        (el  (expand-file-name (concat base ".el")  user-emacs-directory)))
+    (when (and (file-exists-p org)
+               (or (not (file-exists-p el))
+                   (file-newer-than-file-p org el)))
+      (org-babel-tangle-file org el))))
+
+(my/tangle-if-needed "early-init")
+(my/tangle-if-needed "config")
+
+;; 新規マシン(Windows等)では early-init.el が存在せず early-init 段階の
+;; straight ブートストラップが走らない。その場合はこの起動内で読み込んで、
+;; 初回1回で config まで読めるようにする。
+(unless (featurep 'straight)
+  (let ((ei (expand-file-name "early-init.el" user-emacs-directory)))
+    (when (file-exists-p ei)
+      (load ei nil 'nomessage))))
+
+;; 古い .elc が残っていても、新しい .el を優先して読み込む
+(setq load-prefer-newer t)
 
 ;; すぐバイトコンパイルできるように定義
 (defun byte-compile-init-file ()
