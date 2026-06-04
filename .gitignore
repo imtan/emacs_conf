@@ -77,5 +77,15 @@ ddskk/
 # cmigemo
 cmigemo-default-win64/
 
+# LSPセッション（ローカルパス情報を含む）
+.lsp-session-v1
+
+# tangle生成ファイル
+config.el
+early-init.el
+
+# バイトコンパイル成果物
+*.elc
+
 # トラッキング対象外のドキュメント
 SECURITY_AUDIT.md

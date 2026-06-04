@@ -193,6 +193,153 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
 #+RESULTS:
 : org-insert-clipboard-image
 
+*** Eagleから画像挿入
+Eagle(eagle.cool)のローカルAPI経由で画像を選び、~./img/~ にコピーして
+~[[file:...]]~ リンクを挿入する。Eagleが起動している必要がある。
+キーバインドは org-mode 内で ~C-M-e~。
+#+begin_src emacs-lisp :tangle yes
+  (defvar my/eagle-api-base "http://localhost:41595"
+    "Eagle ローカルAPI のベースURL。")
+
+  (defun my/eagle--get (path)
+    "Eagle API の PATH へGETし、JSONの data 部を alist で返す。"
+    (let ((buf (url-retrieve-synchronously (concat my/eagle-api-base path) t t 8)))
+      (unless buf (user-error "Eagle API に接続できません（Eagleは起動中？）"))
+      (with-current-buffer buf
+        (goto-char (or (bound-and-true-p url-http-end-of-headers) (point-min)))
+        (let* ((raw (buffer-substring-no-properties (point) (point-max)))
+               (str (decode-coding-string raw 'utf-8))
+               (json-object-type 'alist)
+               (json-array-type 'list)
+               (json-key-type 'symbol)
+               (obj (json-read-from-string str)))
+          (kill-buffer buf)
+          (unless (equal (alist-get 'status obj) "success")
+            (user-error "Eagle API エラー: %s" (alist-get 'status obj)))
+          (alist-get 'data obj)))))
+
+  (defun my/eagle--library-path ()
+    "現在のEagleライブラリのディレクトリパス。"
+    (let ((d (my/eagle--get "/api/library/info")))
+      (or (alist-get 'path (alist-get 'library d))
+          (alist-get 'path d))))
+
+  (defvar my/eagle--preview-buffer "*Eagle Preview*"
+    "Eagle画像プレビュー用バッファ名。")
+
+  (defvar my/eagle-preview-max-size 300
+    "Eagleプレビュー画像の最大ピクセル(幅/高さ)。小さいほど高速。")
+
+  (defun my/eagle--preview-path (it lib)
+    "アイテム IT のプレビュー用パス（サムネイル優先、無ければ実体）。"
+    (let* ((id (alist-get 'id it))
+           (name (alist-get 'name it))
+           (ext (alist-get 'ext it))
+           (thumb (format "%s/images/%s.info/%s_thumbnail.png" lib id name))
+           (orig (format "%s/images/%s.info/%s.%s" lib id name ext)))
+      (if (file-exists-p thumb) thumb orig)))
+
+  (defun my/eagle--orig-path (it lib)
+    "アイテム IT の実体（オリジナル）パス。"
+    (format "%s/images/%s.info/%s.%s"
+            lib (alist-get 'id it) (alist-get 'name it) (alist-get 'ext it)))
+
+  (defun my/eagle--show-preview (path)
+    "PATH の画像を右側のサイドウィンドウに表示する。"
+    (when (and path (file-exists-p path) (display-graphic-p))
+      (let ((buf (get-buffer-create my/eagle--preview-buffer)))
+        (with-current-buffer buf
+          (let ((inhibit-read-only t))
+            (erase-buffer)
+            (insert-image (create-image path nil nil
+                                        :max-width my/eagle-preview-max-size
+                                        :max-height my/eagle-preview-max-size))
+            (goto-char (point-min)))
+          (setq-local cursor-type nil)
+          (setq-local mode-line-format nil)
+          (setq buffer-read-only t))
+        (display-buffer buf
+                        '((display-buffer-in-side-window)
+                          (side . right) (slot . 0) (window-width . 0.45))))))
+
+  (defun my/eagle--kill-preview ()
+    "プレビューのバッファとウィンドウを片付ける。"
+    (let ((buf (get-buffer my/eagle--preview-buffer)))
+      (when buf
+        (let ((win (get-buffer-window buf)))
+          (when (window-live-p win) (ignore-errors (delete-window win))))
+        (kill-buffer buf))))
+
+  (defun org-insert-eagle-image (&optional keyword)
+    "Eagleから画像をプレビューしながら選び ./img/ にコピーしてorgリンクを挿入する。
+  KEYWORD を与えると名前/タグで絞り込む。空なら最近順。"
+    (interactive (list (read-string "Eagle 検索キーワード(空=最近順): ")))
+    (require 'consult)
+    (let* ((q (if (and keyword (> (length keyword) 0))
+                  (format "/api/item/list?limit=200&orderBy=-MTIME&keyword=%s"
+                          (url-hexify-string keyword))
+                "/api/item/list?limit=200&orderBy=-MTIME"))
+           (items (seq-filter
+                   (lambda (it)
+                     (member (downcase (or (alist-get 'ext it) ""))
+                             '("png" "jpg" "jpeg" "gif" "webp" "bmp" "svg" "avif")))
+                   (my/eagle--get q)))
+           (lib (my/eagle--library-path)))
+      (unless items (user-error "該当する画像アイテムがありません"))
+      (let* ((cands
+              (mapcar
+               (lambda (it)
+                 (let* ((name (alist-get 'name it))
+                        (ext  (alist-get 'ext it))
+                        (tags (alist-get 'tags it))
+                        (label (format "%s.%s%s" name ext
+                                       (if tags
+                                           (format "  [%s]"
+                                                   (mapconcat #'identity
+                                                              (seq-take tags 5) ", "))
+                                         ""))))
+                   (cons label it)))
+               items))
+             (choice
+              (unwind-protect
+                  (consult--read
+                   (mapcar #'car cands)
+                   :prompt "Eagle画像(移動でプレビュー): "
+                   :require-match t
+                   :sort nil
+                   :category 'file
+                   :state (lambda (action cand)
+                            (pcase action
+                              ('preview
+                               (when cand
+                                 (my/eagle--show-preview
+                                  (my/eagle--preview-path
+                                   (cdr (assoc cand cands)) lib))))
+                              ((or 'return 'exit) (my/eagle--kill-preview)))))
+                (my/eagle--kill-preview)))
+             (it (cdr (assoc choice cands)))
+             (name (alist-get 'name it))
+             (ext (alist-get 'ext it))
+             (src (my/eagle--orig-path it lib)))
+        (unless (file-exists-p src)
+          (user-error "Eagleの実体が見つかりません: %s" src))
+        (let* ((dir "img")
+               (dst (expand-file-name (format "%s.%s" name ext) dir)))
+          (unless (file-directory-p dir) (make-directory dir t))
+          (when (file-exists-p dst)
+            (setq dst (expand-file-name
+                       (format "%s-%s.%s" name
+                               (format-time-string "%Y%m%d-%H%M%S") ext)
+                       dir)))
+          (copy-file src dst t)
+          (insert (format "[[file:%s]]" (file-relative-name dst)))
+          (org-display-inline-images)
+          (message "Eagleから挿入: %s" (file-relative-name dst))))))
+
+  (with-eval-after-load 'org
+    (define-key org-mode-map (kbd "C-M-e") #'org-insert-eagle-image))
+#+end_src
+
 *** org-super-agenda
 #+begin_src emacs-lisp :tangle yes
   (use-package org-super-agenda
@@ -279,6 +426,8 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
     :custom
     (org-roam-db-location "~/Documents/Org/org-roam.db")
     (org-roam-directory (file-truename "~/Dropbox/Org"))
+    ;; Dropboxの競合コピーやEmacsのロック/オートセーブをDB走査から除外
+    (org-roam-file-exclude-regexp "競合コピー\\|conflicted copy\\|/\\.#\\|/#[^/]*#")
     :bind (("C-c n l" . org-roam-buffer-toggle)
            ("C-c n f" . org-roam-node-find)
            ("C-c n g" . org-roam-graph)
@@ -383,8 +532,6 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
           org-roam-ui-open-on-start t))
 #+end_src
 
-#+RESULTS:
-| org-roam-ui-mode | vertico-multiform-mode | org-persist-load-all | dashboard-insert-startupify-lists | #[0 \300\301!\210\302\303!\207 [mouse-wheel-mode 0 mac-mouse-wheel-mode 1] 2] | #[0 \301\236A@\211\205 \302\303"?\262\205  \304\305 !\306=\205  \307\305 !\207 [mac-startup-options command-line string-match \`-psn_ frame-visible-p selected-frame t x-focus-frame] 4] | mac-process-deferred-apple-events | tramp-register-archive-autoload-file-name-handler | (lambda nil (when (and (symbol-value 'init-file-user) skk-preload) (skk-preload) (message SKK preload...done)) (when window-system (ccc-setup))) | #[nil \302J\203 \203 \300 \210\303\304!\210	\205 \305 \207 [skk-preload window-system init-file-user message SKK preload...done ccc-setup] 2] | magit-maybe-define-global-key-bindings |
 
 *** org-modern
 #+begin_src emacs-lisp :tangle yes
@@ -424,7 +571,7 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
     :bind
     ("C-c j" . org-journal-new-entry)
     :custom
-    (org-journal-dir "~/Dropbox/Org/journal")
+    (org-journal-dir "~/Dropbox/Org")
     (org-journal-date-format "%A, %d %B %Y")
     (org-journal-time-format "%R\n")
     (org-journal-file-format "%Y%m%d.org")
@@ -442,9 +589,9 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
           (when (re-search-forward "^\\* " nil t)
             (end-of-line)
             (insert "\n"
-  		  "** 今日の一枚\n\n"
-  		  "** 今日の一曲\n\n"
-  		  "** 体調\n\n"
+                    "** 今日の一枚\n\n"
+                    "** 今日の一曲\n\n"
+                    "** 体調\n\n"
                     "** 気分\n\n"
                     "** 気づき\n\n"
                     "** 今日の出来事\n")))))
@@ -661,39 +808,160 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
                            (:exclude ".dir-locals.el" "*-tests.el"))))
 #+end_src
 
-#+RESULTS:
-*** inheritenv
+*** vterm
 #+begin_src emacs-lisp :tangle yes
-  (use-package inheritenv
-  :straight (:type git :host github :repo "purcell/inheritenv"))
+  (use-package vterm
+    :straight t
+    :custom
+    (vterm-max-scrollback 10000)
+    (vterm-buffer-name-string "vterm: %s")
+    :hook
+    (vterm-mode . (lambda ()
+                    (setq-local show-trailing-whitespace nil)
+                    (display-line-numbers-mode -1))))
 #+end_src
 
-#+RESULTS:
+*** Claude Code
+~vterm~ を利用してEmacs内でClaude Codeを起動・操作する。
+~claude~ コマンドにパスが通っている必要がある。
+初回起動時に ~cmake~ と ~libvterm~ が必要（自動ビルド）。
 
-*** claudecode
+| キーバインド | 動作                              |
+|--------------+-----------------------------------|
+| C-c C c      | Claude Code起動 / フォーカス      |
+| C-c C t      | サイドウィンドウをトグル           |
+| C-c C n      | 新規セッション開始                 |
+| C-c C r      | 選択リージョンをClaude Codeに送信 |
+| C-c C f      | 現在のファイルをClaude Codeに送信 |
+
 #+begin_src emacs-lisp :tangle yes
-  (straight-use-package
-   '(monet :type git :host github :repo "stevemolitor/monet"))
-  ;; install claude-code.el, using :depth 1 to reduce download size:
-  (use-package claude-code
-    :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main" :depth 1
-                     :files ("*.el" (:exclude "images/*")))
-    :bind-keymap
-    ("C-c c" . claude-code-command-map) ;; or your preferred key
-    ;; Optionally define a repeat map so that "M" will cycle thru Claude auto-accept/plan/confirm modes after invoking claude-code-cycle-mode / C-c M.
-    :bind
-    (:repeat-map my-claude-code-map ("M" . claude-code-cycle-mode))
-    :config
-    ;; optional IDE integration with Monet
-    (add-hook 'claude-code-process-environment-functions #'monet-start-server-function)
-    (monet-mode 1)
+  (defun my/claude-code--buf-name ()
+    "プロジェクトに対応するClaude Codeバッファ名を返す."
+    (let ((root (or (when (project-current)
+                      (project-root (project-current)))
+                    default-directory)))
+      (format "*claude-code: %s*"
+              (file-name-nondirectory
+               (directory-file-name root)))))
 
-    (claude-code-mode))
-  #+end_src
+  (defun my/claude-code--root ()
+    "プロジェクトルートまたはカレントディレクトリを返す."
+    (or (when (project-current)
+          (project-root (project-current)))
+        default-directory))
 
-#+RESULTS:
-: claude-code-cycle-mode
+  (defun my/claude-code ()
+    "現在のプロジェクトルートでClaude Codeを起動する.
+  プロジェクト外の場合はカレントディレクトリで起動."
+    (interactive)
+    (let ((buf-name (my/claude-code--buf-name)))
+      (unless (get-buffer buf-name)
+        (let ((default-directory (my/claude-code--root)))
+          (vterm buf-name)
+          (vterm-send-string "claude\n")))
+      (my/claude-code--setup-window buf-name)))
 
+  (defun my/claude-code--setup-window (buf-name)
+    "Claude Codeバッファをサイドウィンドウに表示する."
+    (when-let ((buf (get-buffer buf-name)))
+      (display-buffer
+       buf
+       '(display-buffer-in-side-window
+         (side . right)
+         (window-width . 0.42)
+         (slot . 0)))))
+
+  (defun my/claude-code-toggle ()
+    "Claude Codeサイドウィンドウをトグル表示する."
+    (interactive)
+    (let* ((buf-name (my/claude-code--buf-name))
+           (win (get-buffer-window buf-name)))
+      (if win
+          (delete-window win)
+        (my/claude-code))))
+
+  (defun my/claude-code-new-session ()
+    "新しいClaude Codeセッションを強制的に起動する."
+    (interactive)
+    (let* ((buf-name (my/claude-code--buf-name))
+           (root (my/claude-code--root)))
+      (when (get-buffer buf-name)
+        (let ((kill-buffer-query-functions nil))
+          (kill-buffer buf-name)))
+      (let ((default-directory root))
+        (vterm buf-name)
+        (let ((buf buf-name))
+          (run-at-time 0.5 nil
+                       `(lambda ()
+                          (when (buffer-live-p (get-buffer ,buf))
+                            (with-current-buffer ,buf
+                              (vterm-send-string "claude\n")))))))
+      (my/claude-code--setup-window buf-name)))
+
+  (defun my/claude-code-send-region (start end)
+    "選択リージョンをClaude Codeに送信する.
+  Claude Codeが起動していない場合は先に起動する."
+    (interactive "r")
+    (let ((text (buffer-substring-no-properties start end))
+          (buf-name (my/claude-code--buf-name)))
+      (unless (get-buffer buf-name)
+        (my/claude-code)
+        (let ((waited 0))
+          (while (and (not (get-buffer buf-name)) (< waited 5))
+            (sit-for 0.5)
+            (setq waited (+ waited 0.5)))))
+      (if (get-buffer buf-name)
+          (progn
+            (with-current-buffer buf-name
+              (vterm-send-string text)
+              (vterm-send-return))
+            (my/claude-code--setup-window buf-name))
+        (error "Claude Codeバッファ '%s' の起動に失敗しました" buf-name))))
+
+  (defun my/claude-code-send-buffer-file ()
+    "現在のファイルパスをClaude Codeに送信する."
+    (interactive)
+    (when buffer-file-name
+      (let ((buf-name (my/claude-code--buf-name))
+            (rel-path (file-relative-name buffer-file-name (my/claude-code--root))))
+        (unless (get-buffer buf-name)
+          (my/claude-code)
+          (let ((waited 0))
+            (while (and (not (get-buffer buf-name)) (< waited 5))
+              (sit-for 0.5)
+              (setq waited (+ waited 0.5)))))
+        (if (get-buffer buf-name)
+            (progn
+              (with-current-buffer buf-name
+                (vterm-send-string (concat "このファイルを見てください: " rel-path))
+                (vterm-send-return))
+              (my/claude-code--setup-window buf-name))
+          (error "Claude Codeバッファ '%s' の起動に失敗しました" buf-name)))))
+
+  ;; キーバインド（C-c C をプレフィックスに）
+  (define-prefix-command 'my/claude-code-map)
+  (global-set-key (kbd "C-c C") 'my/claude-code-map)
+
+  (define-key my/claude-code-map (kbd "c") #'my/claude-code)
+  (define-key my/claude-code-map (kbd "t") #'my/claude-code-toggle)
+  (define-key my/claude-code-map (kbd "n") #'my/claude-code-new-session)
+  (define-key my/claude-code-map (kbd "r") #'my/claude-code-send-region)
+  (define-key my/claude-code-map (kbd "f") #'my/claude-code-send-buffer-file)
+
+  ;; ウィンドウ設定（サイドウィンドウを固定）
+  (add-to-list 'display-buffer-alist
+               '("\\*claude-code:.*\\*"
+                 (display-buffer-in-side-window)
+                 (side . right)
+                 (window-width . 0.42)
+                 (slot . 0)
+                 (window-parameters . ((no-delete-other-windows . t)))))
+
+  ;; vterm バッファでの追加キーバインド
+  (with-eval-after-load 'vterm
+    (define-key vterm-mode-map (kbd "C-c C t") #'my/claude-code-toggle)
+    (define-key vterm-mode-map (kbd "C-c C n") #'my/claude-code-new-session))
+#+end_src
 ** Programming
 *** flycheck
 #+begin_src emacs-lisp :tangle yes
@@ -936,6 +1204,284 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 #+end_src
 
 #+RESULTS:
+
+** Gemini 執筆支援
+~gptel~ を利用して Gemini API で翻訳・校正・要約・ブログ下書き生成を行う。
+APIキーは ~.authinfo~ または環境変数 ~GEMINI_API_KEY~ から取得。
+
+| キーバインド  | 動作                           |
+|---------------+--------------------------------|
+| C-c G t t     | 自動判定翻訳（日⇔英）         |
+| C-c G t j     | 日本語に翻訳                   |
+| C-c G t e     | 英語に翻訳                     |
+| C-c G p p     | 日本語校正・推敲               |
+| C-c G p e     | 英語校正・推敲                 |
+| C-c G p f     | フォーマル文体に書き直し       |
+| C-c G p c     | カジュアル文体に書き直し       |
+| C-c G s r     | リージョン要約（直後に挿入）   |
+| C-c G s b     | バッファ全体要約（末尾に挿入） |
+| C-c G s k     | キーワード抽出（直後に挿入）   |
+| C-c G d n     | メモからブログ下書き生成       |
+| C-c G d d     | テーマからブログ下書き生成     |
+| C-c G d t     | タイトル候補3つ提案            |
+| C-c G g       | gptelチャットバッファを開く    |
+
+*** gptel セットアップ
+#+begin_src emacs-lisp :tangle yes
+  (use-package gptel
+    :straight t
+    :config
+    (gptel-make-gemini "Gemini"
+      :key (or (auth-source-pick-first-password
+                :host "generativelanguage.googleapis.com"
+                :user "apikey")
+               (getenv "GEMINI_API_KEY"))
+      :stream t))
+
+  (setq gptel-backend (gptel-get-backend "Gemini")
+        gptel-model   'gemini-3-flash-preview)
+#+end_src
+
+#+RESULTS:
+: gemini-3-flash-preview
+
+*** 共通ユーティリティ
+#+begin_src emacs-lisp :tangle yes
+  (defun my/gemini--replace-region-with-response (prompt start end)
+    "リージョン(START END)のテキストをPROMPTでGeminiに送り、結果でその場置換する."
+    (let ((text (buffer-substring-no-properties start end))
+          (buf  (current-buffer))
+          (m-start (copy-marker start))
+          (m-end   (copy-marker end)))
+      (message "Gemini に送信中...")
+      (gptel-request
+       (concat prompt "\n\n" text)
+       :buffer buf
+       :callback
+       `(lambda (response info)
+          (cond
+           ((not response)
+            (message "Gemini エラー: %s" (plist-get info :status)))
+           ((not (stringp response))
+            nil) ; reasoning ブロックはスキップ
+           (t
+            (with-current-buffer (plist-get info :buffer)
+              (let ((inhibit-read-only t))
+                (delete-region ,m-start ,m-end)
+                (goto-char ,m-start)
+                (insert response)
+                (set-marker ,m-start nil)
+                (set-marker ,m-end nil)))
+            (message "完了")))))))
+
+  (defun my/gemini--insert-after-region (prompt start end)
+    "リージョンのテキストをGeminiに送り、結果をリージョン直後に挿入する."
+    (let ((text (buffer-substring-no-properties start end))
+          (buf  (current-buffer))
+          (pos  (copy-marker end)))
+      (message "Gemini に送信中...")
+      (gptel-request
+       (concat prompt "\n\n" text)
+       :buffer buf
+       :callback
+       `(lambda (response info)
+          (cond
+           ((not response)
+            (message "Gemini エラー: %s" (plist-get info :status)))
+           ((not (stringp response))
+            nil) ; reasoning ブロックはスキップ
+           (t
+            (with-current-buffer (plist-get info :buffer)
+              (goto-char ,pos)
+              (insert "\n\n" response)
+              (set-marker ,pos nil))
+            (message "完了")))))))
+#+end_src
+
+*** 翻訳
+#+begin_src emacs-lisp :tangle yes
+  (defun my/gemini-translate-to-japanese (start end)
+    "選択リージョンを自然な日本語に翻訳してその場置換する."
+    (interactive "r")
+    (my/gemini--replace-region-with-response
+     "以下のテキストを自然な日本語に翻訳してください。翻訳文のみ出力し、説明や前置きは不要です。"
+     start end))
+
+  (defun my/gemini-translate-to-english (start end)
+    "選択リージョンを自然な英語に翻訳してその場置換する."
+    (interactive "r")
+    (my/gemini--replace-region-with-response
+     "Translate the following text to natural English. Output only the translation, no explanations."
+     start end))
+
+  (defun my/gemini-translate-auto (start end)
+    "日本語→英語、英語→日本語を自動判定して翻訳・置換する."
+    (interactive "r")
+    (let ((text (buffer-substring-no-properties start end)))
+      (if (string-match "[ぁ-んァ-ン一-龯]" text)
+          (my/gemini-translate-to-english start end)
+        (my/gemini-translate-to-japanese start end))))
+#+end_src
+
+*** 校正・推敲
+#+begin_src emacs-lisp :tangle yes
+  (defun my/gemini-proofread (start end)
+    "選択リージョンの文章を校正・推敲してその場置換する."
+    (interactive "r")
+    (my/gemini--replace-region-with-response
+     "以下の文章を校正・推敲してください。
+  誤字脱字・文法ミスの修正、読みやすさの改善を行ってください。
+  文体・トーン・内容の骨子は変えずに、改善した文章のみを出力してください。"
+     start end))
+
+  (defun my/gemini-proofread-en (start end)
+    "選択リージョンの英文を校正・推敲してその場置換する."
+    (interactive "r")
+    (my/gemini--replace-region-with-response
+     "Please proofread and refine the following English text.
+  Fix grammar, spelling, and improve readability while preserving the original tone and meaning.
+  Output only the corrected text."
+     start end))
+
+  (defun my/gemini-rewrite-formal (start end)
+    "選択リージョンをフォーマルな文体に書き直してその場置換する."
+    (interactive "r")
+    (my/gemini--replace-region-with-response
+     "以下の文章をより丁寧でフォーマルなビジネス文体に書き直してください。
+  書き直した文章のみを出力してください。"
+     start end))
+
+  (defun my/gemini-rewrite-casual (start end)
+    "選択リージョンをカジュアルな文体に書き直してその場置換する."
+    (interactive "r")
+    (my/gemini--replace-region-with-response
+     "以下の文章をブログやSNS向けのわかりやすくカジュアルな文体に書き直してください。
+  書き直した文章のみを出力してください。"
+     start end))
+#+end_src
+
+*** 要約・キーワード抽出
+#+begin_src emacs-lisp :tangle yes
+  (defun my/gemini-summarize-region (start end)
+    "選択リージョンを箇条書きで要約し、リージョン直後に挿入する."
+    (interactive "r")
+    (my/gemini--insert-after-region
+     "以下のテキストを簡潔に要約してください。
+  箇条書き（- 項目）形式で、重要なポイントを3〜5点にまとめてください。
+  org-mode形式（- で始まる箇条書き）で出力してください。"
+     start end))
+
+  (defun my/gemini-summarize-buffer ()
+    "現在のバッファ全体を要約し、バッファ末尾に挿入する."
+    (interactive)
+    (let ((text (buffer-substring-no-properties (point-min) (point-max)))
+          (buf  (current-buffer)))
+      (message "Gemini でバッファ全体を要約中...")
+      (gptel-request
+       (concat
+        "以下のノートを要約してください。\n"
+        "org-mode形式で、見出し「* Summary」の下に要約を箇条書きで出力してください。\n\n"
+        text)
+       :buffer buf
+       :callback
+       (lambda (response info)
+         (if (not response)
+             (message "Gemini エラー: %s" (plist-get info :status))
+           (with-current-buffer buf
+             (goto-char (point-max))
+             (insert "\n\n* Summary\n" response))
+           (message "要約を末尾に追加しました"))))))
+
+  (defun my/gemini-extract-keywords (start end)
+    "選択リージョンからキーワードを抽出し、リージョン直後に挿入する."
+    (interactive "r")
+    (my/gemini--insert-after-region
+     "以下のテキストから重要なキーワードを抽出してください。
+  org-mode形式で #+KEYWORDS: キーワード1, キーワード2 の形式で出力してください。"
+     start end))
+#+end_src
+
+*** ブログ下書き生成
+#+begin_src emacs-lisp :tangle yes
+  (defun my/gemini-draft-blog-from-notes (start end)
+    "選択リージョンのメモ・箇条書きからブログ記事の下書きを生成し、直後に挿入する."
+    (interactive "r")
+    (my/gemini--insert-after-region
+     "以下のメモや箇条書きをもとに、技術ブログ記事の下書きを生成してください。
+  - 読者に向けた自然な文章で書く
+  - org-mode形式（見出しは * や ** を使う）で出力する
+  - 導入・本文・まとめの構成にする
+  - コード例があれば #+begin_src ... #+end_src で囲む"
+     start end))
+
+  (defun my/gemini-draft-blog-interactive ()
+    "テーマを入力してブログ記事の下書きを新しいバッファに生成する."
+    (interactive)
+    (let* ((theme (read-string "ブログテーマ: "))
+           (lang  (completing-read "言語: " '("日本語" "English") nil t "日本語"))
+           (prompt (if (string= lang "日本語")
+                       (format "「%s」というテーマで技術ブログ記事の下書きを書いてください。
+  org-mode形式（* 見出し, ** サブ見出し）で、
+  導入・背景・本文・コード例・まとめの構成で出力してください。" theme)
+                     (format "Write a draft blog post about \"%s\".
+  Use org-mode format with * headings.
+  Structure: intro, background, main content with code examples, conclusion." theme)))
+           (out-buf (get-buffer-create (format "*draft: %s*" theme))))
+      (message "Gemini でブログ下書き生成中...")
+      (gptel-request
+       prompt
+       :buffer out-buf
+       :callback
+       (lambda (response info)
+         (if (not response)
+             (message "Gemini エラー: %s" (plist-get info :status))
+           (with-current-buffer out-buf
+             (org-mode)
+             (erase-buffer)
+             (insert response))
+           (pop-to-buffer out-buf)
+           (message "下書きを生成しました"))))))
+
+  (defun my/gemini-suggest-title (start end)
+    "選択リージョンの内容からブログタイトル候補を3つ提案し、直後に挿入する."
+    (interactive "r")
+    (my/gemini--insert-after-region
+     "以下の文章に合うブログ記事タイトルを3つ提案してください。
+  各タイトルは - で始まる箇条書きで出力してください。
+  SEOを意識した具体的でクリックしたくなるタイトルにしてください。"
+     start end))
+#+end_src
+
+*** キーバインド
+#+begin_src emacs-lisp :tangle yes
+  ;; C-c G を Gemini 執筆支援プレフィックスに（C-c g は magit-file-dispatch で使用中）
+  (define-prefix-command 'my/gemini-writing-map)
+  (global-set-key (kbd "C-c G") 'my/gemini-writing-map)
+
+  ;; 翻訳
+  (define-key my/gemini-writing-map (kbd "t t") #'my/gemini-translate-auto)
+  (define-key my/gemini-writing-map (kbd "t j") #'my/gemini-translate-to-japanese)
+  (define-key my/gemini-writing-map (kbd "t e") #'my/gemini-translate-to-english)
+
+  ;; 校正・推敲
+  (define-key my/gemini-writing-map (kbd "p p") #'my/gemini-proofread)
+  (define-key my/gemini-writing-map (kbd "p e") #'my/gemini-proofread-en)
+  (define-key my/gemini-writing-map (kbd "p f") #'my/gemini-rewrite-formal)
+  (define-key my/gemini-writing-map (kbd "p c") #'my/gemini-rewrite-casual)
+
+  ;; 要約・キーワード
+  (define-key my/gemini-writing-map (kbd "s r") #'my/gemini-summarize-region)
+  (define-key my/gemini-writing-map (kbd "s b") #'my/gemini-summarize-buffer)
+  (define-key my/gemini-writing-map (kbd "s k") #'my/gemini-extract-keywords)
+
+  ;; ブログ下書き
+  (define-key my/gemini-writing-map (kbd "d n") #'my/gemini-draft-blog-from-notes)
+  (define-key my/gemini-writing-map (kbd "d d") #'my/gemini-draft-blog-interactive)
+  (define-key my/gemini-writing-map (kbd "d t") #'my/gemini-suggest-title)
+
+  ;; gptelチャットバッファ（自由入力）
+  (define-key my/gemini-writing-map (kbd "g") #'gptel)
+#+end_src
 
 ** footer
 #+begin_src emacs-lisp :tangle yes
