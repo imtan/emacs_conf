@@ -1166,6 +1166,14 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
   (keymap-global-set "<remap> <scroll-up-command>" #'pixel-scroll-interpolate-down)
   (keymap-global-set "<remap> <scroll-down-command>" #'pixel-scroll-interpolate-up)
 #+end_src
+** サーバー
+#+begin_src emacs-lisp :tangle yes
+  ;; 起動した Emacs を常にサーバー化し、emacsclient 接続を受けられるようにする。
+  ;; server-running-p はクラッシュ等で残った古い server ファイルを
+  ;; 「稼働中」と誤判定する(Windows/TCP)ため、ガードせず無条件に起動して上書きする
+  (require 'server)
+  (server-start)
+#+end_src
 ** 見た目の設定
 #+begin_src emacs-lisp :tangle yes
     (load-theme 'modus-vivendi t)
