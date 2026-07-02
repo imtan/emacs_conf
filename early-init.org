@@ -20,6 +20,18 @@
 (setq package-enable-at-startup nil)
 #+end_src
 
+** 起動高速化
+#+begin_src emacs-lisp :tangle yes
+  ;; 起動中はGCを抑制し、起動完了後に16MBへ戻す
+  (setq gc-cons-threshold most-positive-fixnum)
+  (add-hook 'emacs-startup-hook
+            (lambda () (setq gc-cons-threshold (* 16 1024 1024))))
+
+  ;; 起動時の全パッケージスキャン(find/git)をやめ、Emacs内で保存した時だけチェックする。
+  ;; Emacs外でパッケージソースを編集した場合は M-x straight-rebuild-package で手動再ビルド
+  (setq straight-check-for-modifications '(check-on-save find-when-checking))
+#+end_src
+
 ** straight.el
 #+begin_src emacs-lisp :tangle yes
   ;; パッケージマネージャーのインストール
