@@ -372,6 +372,9 @@ Eagle(eagle.cool)のローカルAPI経由で画像を選び、~./img/~ にコピ
                                   :tag "health")
                            (:name "🧹 雑務"
                                   :tag "life")
+                           (:name "📥 未整理（Inbox）"
+                                  :and (:todo "TODO"
+                                        :not (:tag ("game" "write" "study" "health" "life"))))
                            (:discard (:anything t)))))))))))
 #+end_src
 
@@ -383,6 +386,16 @@ Eagle(eagle.cool)のローカルAPI経由で画像を選び、~./img/~ にコピ
   (setq org-agenda-use-time-grid t)
   (setq org-agenda-span 'day)
   (define-key global-map (kbd "C-c a") 'org-agenda)
+
+  ;; Daily dashboard のグループ分けに使うジャンルタグ。
+  ;; C-c C-q（org-set-tags）や capture の %^G で 1 キー付与できる。
+  (setq org-tag-alist
+        '(("game"   . ?g)
+          ("write"  . ?w)
+          ("study"  . ?s)
+          ("health" . ?h)
+          ("life"   . ?l)
+          ("レトロスペクティブ" . ?r)))
 
   (setopt org-agenda-block-separator "------------------------------")
   (setq
@@ -625,9 +638,26 @@ Eagle(eagle.cool)のローカルAPI経由で画像を選び、~./img/~ にコピ
     	 "[ ] %? \n")
           ("g" "行きたいところ" checkitem (file+headline listfile "行きたいところ")
     	 "[ ] %? \n")
-    	("i" "Inbox にエントリー" entry (file+headline taskfile "Tasks")
-           "* TODO %? %^G %t\n** Ready の定義\n- Why?, Goal, How? が埋められていること\n- How がある程度具体的に書かれていること\n** Why?\n** Info\n** Goal\n** How?\n** Result\n\t")))
+    	;; Inbox：考えずに素早く放り込む（分類・詳細化は後で）
+    	("i" "Inbox にエントリー" entry (file+headline taskfile "Inbox")
+           "** TODO %? %^G %t\n")
+    	;; Ready化・プロジェクト：Why/Goal/How まで作り込むとき
+    	("p" "Ready化・プロジェクト" entry (file+headline taskfile "Inbox")
+           "** TODO %? %^G %t\n*** Why?\n*** Goal\n*** How?\n*** Result\n")))
 
+#+end_src
+
+*** org-refile
+#+begin_src emacs-lisp :tangle yes
+  ;; refile先の候補：agendaファイル群と現在バッファの見出し（3階層まで）
+  (setq org-refile-targets
+        '((org-agenda-files :maxlevel . 3)
+          (nil :maxlevel . 3)))
+  ;; ファイル名も含めたフルパスで候補表示（verticoで絞り込みやすく）
+  (setq org-refile-use-outline-path 'file)
+  (setq org-outline-path-complete-in-steps nil)
+  ;; 存在しない見出しを指定したら、確認の上で新規作成できる
+  (setq org-refile-allow-creating-parent-nodes 'confirm)
 #+end_src
 
 *** mpvで再生する
