@@ -1151,17 +1151,20 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 #+end_src
 ** スクロール
 #+begin_src emacs-lisp :tangle yes
-  (use-package ultra-scroll
-    :straight(ultra-scroll
-  	    :type git
-  	    :host github
-  	    :repo "jdtsmith/ultra-scroll") ; if desired (emacs>=v30)
-    :init
-    (setq scroll-conservatively 3 ; or whatever value you prefer, since v0.4
-  	scroll-margin 0)	  ; important: scroll-margin>0 not yet supported
-    :config
-    (ultra-scroll-mode 1))
+  ;; ピクセル単位スクロール（Emacs組み込み）。縦長のインライン画像が
+  ;; スクロールで一気に消える/現れるのを防ぐ。
+  ;; 精密タッチパッドはネイティブに、普通のマウスホイールは
+  ;; 補間(pixel-scroll-precision-interpolate-mice、デフォルトt)で滑らかにする。
+  ;; 以前使っていたultra-scrollはピクセルデルタの無い普通のホイールでは
+  ;; 行スクロールにフォールバックするため置き換えた。
+  (setq scroll-conservatively 3
+        scroll-margin 0)
+  (setq pixel-scroll-precision-interpolate-page t)
+  (pixel-scroll-precision-mode 1)
 
+  ;; キーボードのページ送り(C-v/M-v)もピクセル単位に補間する
+  (keymap-global-set "<remap> <scroll-up-command>" #'pixel-scroll-interpolate-down)
+  (keymap-global-set "<remap> <scroll-down-command>" #'pixel-scroll-interpolate-up)
 #+end_src
 ** 見た目の設定
 #+begin_src emacs-lisp :tangle yes
