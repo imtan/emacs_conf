@@ -833,6 +833,7 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 *** eat
 #+begin_src emacs-lisp :tangle yes
 (use-package eat
+  :defer t   ;; 即時ロードするとTRAMPまで起動時に読み込まれ遅くなる
   :straight (:type git
                    :host codeberg
                    :repo "akib/emacs-eat"
