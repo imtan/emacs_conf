@@ -578,25 +578,25 @@ Eagle(eagle.cool)のローカルAPI経由で画像を選び、~./img/~ にコピ
     (org-journal-file-header
      "#+title: %Y-%m-%d Journal\n#+startup: folded\n\n")
     :config
+    (defvar my/org-journal-daily-template-file
+      (expand-file-name "templates/journal-daily.org" user-emacs-directory)
+      "org-journal の日次テンプレートファイル。")
     (defun my/org-journal-insert-daily-template ()
-      "その日の最初のエントリ作成時のみテンプレートを挿入。"
-      (save-excursion
-        ;; ファイル全体で「今日の出来事」があるか確認
-        (goto-char (point-min))
-        (unless (re-search-forward "^\\*\\* 今日の出来事" nil t)
-          ;; 最初のレベル1見出し（日付見出し）を探す
+      "その日の最初のエントリ作成時のみ、外部テンプレートを挿入。"
+      (when (file-exists-p my/org-journal-daily-template-file)
+        (save-excursion
           (goto-char (point-min))
-          (when (re-search-forward "^\\* " nil t)
-            (end-of-line)
-            (insert "\n"
-                    "** 今日の一枚\n\n"
-                    "** 今日の一曲\n\n"
-                    "** 体調\n\n"
-                    "** 気分\n\n"
-                    "** 気づき\n\n"
-                    "** 今日の出来事\n")))))
+          ;; まだ子見出し(**)が無ければ、その日の最初のエントリ
+          (unless (re-search-forward "^\\*\\* " nil t)
+            (goto-char (point-min))
+            (when (re-search-forward "^\\* " nil t)
+              (end-of-line)
+              (insert "\n")
+              (insert-file-contents my/org-journal-daily-template-file))))))
     :hook
-    (org-journal-after-entry-create . my/org-journal-insert-daily-template))
+    ;; after-entry-create だと ** 時刻見出しが先に挿入されガードに引っかかるため、
+    ;; 日付見出し新規作成時（＝その日の最初の1回）だけ走る header-create を使う
+    (org-journal-after-header-create . my/org-journal-insert-daily-template))
 #+end_src
 
 #+RESULTS:
