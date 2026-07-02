@@ -89,3 +89,15 @@ early-init.el
 
 # トラッキング対象外のドキュメント
 SECURITY_AUDIT.md
+
+# straightがWindowsでシンボリックリンク代替に生成するコピー
+straight/links/
+
+# TRAMP接続履歴
+tramp
+
+# リダイレクトミスで生成される0バイトファイル
+nul
+
+# Claude Codeのマシンローカル設定
+.claude/settings.local.json
