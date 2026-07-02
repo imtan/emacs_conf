@@ -108,6 +108,8 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     (add-hook 'elpaca-after-init-hook #'dashboard-insert-startupify-lists)
     (add-hook 'elpaca-after-init-hook #'dashboard-initialize)
     (dashboard-setup-startup-hook))
+  ;; emacsclientで作った新フレーム（ファイル指定なし）でもdashboardを表示する
+  (setq initial-buffer-choice (lambda () (get-buffer-create dashboard-buffer-name)))
   (setq dashboard-startup-banner "~/.emacs.d/ascii-banner.txt")
   ;; タイトル文字列（いらなければ空文字でもOK）
   (setq dashboard-banner-logo-title "I’m talking about the present.")
