@@ -43,8 +43,10 @@
   (byte-compile-file (expand-file-name "config.el" user-emacs-directory)))
 
 ;; 設定の読み込み
-(add-to-list 'load-path (expand-file-name user-emacs-directory))
-(require 'config)
+;; ~/.emacs.d を load-path に入れると、直下の接続履歴ファイル tramp 等が
+;; 同名ライブラリと誤認される（TRAMPロード時にgitが走る原因になった）ため、
+;; load-path には追加せず config.el を直接 load する
+(load (expand-file-name "config.el" user-emacs-directory) nil 'nomessage)
 
 (provide 'init)
 ;;; init.el ends here
