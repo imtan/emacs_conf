@@ -847,6 +847,7 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 #+begin_src emacs-lisp :tangle yes
   (use-package vterm
     :straight t
+    :if (not (eq system-type 'windows-nt))   ;; Windowsはvterm(ネイティブ)非対応のため読み込まない
     :custom
     (vterm-max-scrollback 10000)
     (vterm-buffer-name-string "vterm: %s")
