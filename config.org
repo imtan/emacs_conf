@@ -697,6 +697,11 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 *** インラインでイメージを表示する
 #+begin_src emacs-lisp :tangle yes
   (setq org-startup-with-inline-images t)
+  ;; 保存時に、手で入れた file: 画像リンクも自動でインライン表示する
+  ;; （C-c C-x C-v を手動で押す手間をなくす）
+  (add-hook 'org-mode-hook
+            (lambda ()
+              (add-hook 'after-save-hook #'org-display-inline-images nil t)))
 #+end_src
 
 ** vertico
