@@ -196,12 +196,18 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
 : org-insert-clipboard-image
 
 *** Eagleから画像挿入
-Eagle(eagle.cool)のローカルAPI経由で画像を選び、~./img/~ にコピーして
-~[[file:...]]~ リンクを挿入する。Eagleが起動している必要がある。
-キーバインドは org-mode 内で ~C-M-e~。
+Eagle(eagle.cool)のローカルAPI経由で画像を選び、ライブラリ実体への
+~[[file:~/Dropbox/...]]~ リンクを挿入する（コピーはしない）。
+チルダ表記なので、Dropboxがホーム直下にあるOSならどこでも同じリンクで表示できる。
+Eagleが起動している必要がある。
+キーバインドは org-mode 内で ~C-M-e~（キーワード検索）、~C-c e~（フォルダから選択）。
 #+begin_src emacs-lisp :tangle yes
   (defvar my/eagle-api-base "http://localhost:41595"
     "Eagle ローカルAPI のベースURL。")
+
+  (defvar my/eagle-image-exts
+    '("png" "jpg" "jpeg" "gif" "webp" "bmp" "svg" "avif")
+    "orgに挿入する対象とする画像拡張子。")
 
   (defun my/eagle--get (path)
     "Eagle API の PATH へGETし、JSONの data 部を alist で返す。"
@@ -272,23 +278,17 @@ Eagle(eagle.cool)のローカルAPI経由で画像を選び、~./img/~ にコピ
           (when (window-live-p win) (ignore-errors (delete-window win))))
         (kill-buffer buf))))
 
-  (defun org-insert-eagle-image (&optional keyword)
-    "Eagleから画像をプレビューしながら選び ./img/ にコピーしてorgリンクを挿入する。
-  KEYWORD を与えると名前/タグで絞り込む。空なら最近順。"
-    (interactive (list (read-string "Eagle 検索キーワード(空=最近順): ")))
-    (require 'consult)
-    (let* ((q (if (and keyword (> (length keyword) 0))
-                  (format "/api/item/list?limit=200&orderBy=-MTIME&keyword=%s"
-                          (url-hexify-string keyword))
-                "/api/item/list?limit=200&orderBy=-MTIME"))
-           (items (seq-filter
-                   (lambda (it)
-                     (member (downcase (or (alist-get 'ext it) ""))
-                             '("png" "jpg" "jpeg" "gif" "webp" "bmp" "svg" "avif")))
-                   (my/eagle--get q)))
-           (lib (my/eagle--library-path)))
-      (unless items (user-error "該当する画像アイテムがありません"))
-      (let* ((cands
+  (defun my/eagle--filter-images (items)
+    "ITEMS から画像拡張子のものだけを返す。"
+    (seq-filter
+     (lambda (it)
+       (member (downcase (or (alist-get 'ext it) "")) my/eagle-image-exts))
+     items))
+
+  (defun my/eagle--pick-and-insert (items lib)
+    "ITEMS からプレビュー付きで1枚選び、実体へのorgリンクを挿入する。"
+    (unless items (user-error "該当する画像アイテムがありません"))
+    (let* ((cands
               (mapcar
                (lambda (it)
                  (let* ((name (alist-get 'name it))
@@ -320,26 +320,57 @@ Eagle(eagle.cool)のローカルAPI経由で画像を選び、~./img/~ にコピ
                               ((or 'return 'exit) (my/eagle--kill-preview)))))
                 (my/eagle--kill-preview)))
              (it (cdr (assoc choice cands)))
-             (name (alist-get 'name it))
-             (ext (alist-get 'ext it))
              (src (my/eagle--orig-path it lib)))
         (unless (file-exists-p src)
           (user-error "Eagleの実体が見つかりません: %s" src))
-        (let* ((dir "img")
-               (dst (expand-file-name (format "%s.%s" name ext) dir)))
-          (unless (file-directory-p dir) (make-directory dir t))
-          (when (file-exists-p dst)
-            (setq dst (expand-file-name
-                       (format "%s-%s.%s" name
-                               (format-time-string "%Y%m%d-%H%M%S") ext)
-                       dir)))
-          (copy-file src dst t)
-          (insert (format "[[file:%s]]" (file-relative-name dst)))
+        ;; ライブラリ(Dropbox内)の実体へ直接リンクする。abbreviate-file-name で
+        ;; ~/Dropbox/... 形式になるため、Dropboxがホーム直下にあるOSなら共通で表示できる
+        (let ((link (abbreviate-file-name (expand-file-name src))))
+          (insert (format "[[file:%s]]" link))
           (org-display-inline-images)
-          (message "Eagleから挿入: %s" (file-relative-name dst))))))
+          (message "Eagleから挿入: %s" link))))
+
+  (defun org-insert-eagle-image (&optional keyword)
+    "Eagleから画像をプレビューしながら選び、ライブラリ実体へのorgリンクを挿入する。
+  リンクは ~/Dropbox/... のチルダ形式で書くため、OSをまたいで表示できる。
+  KEYWORD を与えると名前/タグで絞り込む。空なら最近順。"
+    (interactive (list (read-string "Eagle 検索キーワード(空=最近順): ")))
+    (require 'consult)
+    (let ((q (if (and keyword (> (length keyword) 0))
+                 (format "/api/item/list?limit=200&orderBy=-MTIME&keyword=%s"
+                         (url-hexify-string keyword))
+               "/api/item/list?limit=200&orderBy=-MTIME")))
+      (my/eagle--pick-and-insert
+       (my/eagle--filter-images (my/eagle--get q))
+       (my/eagle--library-path))))
+
+  (defun my/eagle--flatten-folders (folders &optional prefix)
+    "FOLDERS の階層を「親/子」ラベルの (LABEL . ID) リストに平坦化する。"
+    (mapcan (lambda (f)
+              (let* ((name (alist-get 'name f))
+                     (label (if prefix (concat prefix "/" name) name)))
+                (cons (cons label (alist-get 'id f))
+                      (my/eagle--flatten-folders (alist-get 'children f) label))))
+            folders))
+
+  (defun org-insert-eagle-image-from-folder ()
+    "Eagleのフォルダを選び、その中の画像からorgリンクを挿入する。"
+    (interactive)
+    (require 'consult)
+    (let* ((folders (my/eagle--flatten-folders (my/eagle--get "/api/folder/list")))
+           (choice (progn
+                     (unless folders (user-error "Eagleにフォルダがありません"))
+                     (completing-read "Eagleフォルダ: " (mapcar #'car folders) nil t)))
+           (id (cdr (assoc choice folders))))
+      (my/eagle--pick-and-insert
+       (my/eagle--filter-images
+        (my/eagle--get
+         (format "/api/item/list?limit=200&orderBy=-MTIME&folders=%s" id)))
+       (my/eagle--library-path))))
 
   (with-eval-after-load 'org
-    (define-key org-mode-map (kbd "C-M-e") #'org-insert-eagle-image))
+    (define-key org-mode-map (kbd "C-M-e") #'org-insert-eagle-image)
+    (define-key org-mode-map (kbd "C-c e") #'org-insert-eagle-image-from-folder))
 #+end_src
 
 *** org-super-agenda
