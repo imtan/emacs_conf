@@ -680,6 +680,323 @@ Eagleが起動している必要がある。
 
 #+end_src
 
+*** 本のキャプチャ（ISBN自動取得）
+~C-c c B~ でISBN（またはタイトル）を入れると、openBD → Google Books の順で
+書誌情報を取得して ~books/books.org~ の先頭にエントリを作る。
+#+begin_src emacs-lisp :tangle yes
+  (defun my/book--http-json (url)
+    "URL からJSONを取得してパースする。失敗したら nil。"
+    (ignore-errors
+      (let ((buf (url-retrieve-synchronously url t t 10)))
+        (when buf
+          (with-current-buffer buf
+            (goto-char (or (bound-and-true-p url-http-end-of-headers) (point-min)))
+            (let ((raw (buffer-substring-no-properties (point) (point-max)))
+                  (json-object-type 'alist)
+                  (json-array-type 'list)
+                  (json-key-type 'symbol))
+              (prog1 (json-read-from-string (decode-coding-string raw 'utf-8))
+                (kill-buffer buf))))))))
+
+  (defun my/book--fmt-date (d)
+    "openBD の出版日(YYYYMMDD/YYYYMM)を YYYY-MM-DD / YYYY-MM に整える。"
+    (cond ((null d) nil)
+          ((string-match "\\`\\([0-9]\\{4\\}\\)\\([0-9]\\{2\\}\\)\\([0-9]\\{2\\}\\)?\\'" d)
+           (mapconcat #'identity
+                      (delq nil (list (match-string 1 d) (match-string 2 d)
+                                      (match-string 3 d)))
+                      "-"))
+          (t d)))
+
+  (defun my/book--fetch-openbd (isbn)
+    "openBD から ISBN の書誌情報を取得する。見つからなければ nil。"
+    (let* ((data (my/book--http-json (concat "https://api.openbd.jp/v1/get?isbn=" isbn)))
+           (s (alist-get 'summary (car data))))
+      (when (and s (not (string-empty-p (or (alist-get 'title s) ""))))
+        `((title . ,(alist-get 'title s))
+          (author . ,(alist-get 'author s))
+          (publisher . ,(alist-get 'publisher s))
+          (pubdate . ,(my/book--fmt-date (alist-get 'pubdate s)))
+          (isbn . ,(alist-get 'isbn s))
+          (cover . ,(alist-get 'cover s))))))
+
+  (defun my/book--fetch-openlibrary-isbn (isbn)
+    "OpenLibrary から ISBN の書誌情報を取得する。見つからなければ nil。
+  Google Books APIはキー無しの無料枠が0のため、洋書はこちらを使う。"
+    (let* ((data (my/book--http-json
+                  (format "https://openlibrary.org/api/books?bibkeys=ISBN:%s&format=json&jscmd=data" isbn)))
+           (b (alist-get (intern (concat "ISBN:" isbn)) data)))
+      (when b
+        `((title . ,(alist-get 'title b))
+          (author . ,(mapconcat (lambda (a) (alist-get 'name a))
+                                (alist-get 'authors b) ", "))
+          (publisher . ,(mapconcat (lambda (p) (alist-get 'name p))
+                                   (alist-get 'publishers b) ", "))
+          (pubdate . ,(alist-get 'publish_date b))
+          (isbn . ,isbn)
+          (cover . ,(alist-get 'medium (alist-get 'cover b)))))))
+
+  (defun my/book--search-openlibrary (q)
+    "OpenLibrary をタイトル Q で検索し、書誌 alist のリストを返す。"
+    (let ((data (my/book--http-json
+                 (concat "https://openlibrary.org/search.json?limit=10"
+                         "&fields=title,author_name,publisher,first_publish_year,isbn"
+                         "&title=" (url-hexify-string q)))))
+      (mapcar (lambda (d)
+                `((title . ,(alist-get 'title d))
+                  (author . ,(mapconcat #'identity (alist-get 'author_name d) ", "))
+                  (publisher . ,(car (alist-get 'publisher d)))
+                  (pubdate . ,(let ((y (alist-get 'first_publish_year d)))
+                                (and y (number-to-string y))))
+                  (isbn . ,(seq-find (lambda (i) (= (length i) 13))
+                                     (alist-get 'isbn d)))))
+              (alist-get 'docs data))))
+
+  (defun my/book--http-xml (url)
+    "URL からXMLを取得してパースする。失敗したら nil。"
+    (require 'xml)
+    (require 'dom)
+    (ignore-errors
+      (let ((buf (url-retrieve-synchronously url t t 10)))
+        (when buf
+          (with-current-buffer buf
+            (goto-char (or (bound-and-true-p url-http-end-of-headers) (point-min)))
+            (let ((raw (buffer-substring-no-properties (point) (point-max))))
+              (kill-buffer buf)
+              (with-temp-buffer
+                (insert (decode-coding-string raw 'utf-8))
+                (car (xml-parse-region (point-min) (point-max))))))))))
+
+  (defun my/book--search-ndl (q)
+    "NDLサーチ(国会図書館)を Q で検索し、書誌 alist のリストを返す。
+  any=全項目検索＋mediatype=1(図書のみ)で再現率とノイズのバランスを取る。"
+    (let ((dom (my/book--http-xml
+                (concat "https://ndlsearch.ndl.go.jp/api/opensearch?cnt=20&mediatype=books&any="
+                        (url-hexify-string q)))))
+      (delq nil
+            (mapcar
+             (lambda (item)
+               (let ((title (dom-text (car (dom-by-tag item 'title))))
+                     (author (dom-text (car (dom-by-tag item 'author))))
+                     (publisher (dom-text (car (dom-by-tag item 'dc:publisher))))
+                     (issued (dom-text (car (dom-by-tag item 'dcterms:issued))))
+                     (isbn (car (delq nil
+                                      (mapcar
+                                       (lambda (id)
+                                         (when (equal (dom-attr id 'xsi:type) "dcndl:ISBN")
+                                           (replace-regexp-in-string "-" "" (dom-text id))))
+                                       (dom-by-tag item 'dc:identifier))))))
+                 (when (and title (not (string-empty-p title)))
+                   `((title . ,title) (author . ,author)
+                     (publisher . ,publisher) (pubdate . ,issued)
+                     (isbn . ,isbn)))))
+             (dom-by-tag dom 'item)))))
+
+  (defun my/book--dedup-sort (cands q)
+    "書誌候補 CANDS を重複排除し、Q をタイトルに含むものを上位に並べる。
+  重複キーは ISBN、無ければタイトル+著者。"
+    (let (seen out)
+      (dolist (b cands)
+        (let ((key (or (alist-get 'isbn b)
+                       (concat (alist-get 'title b) "/" (or (alist-get 'author b) "")))))
+          (unless (member key seen)
+            (push key seen)
+            (push b out))))
+      (sort (nreverse out)
+            (lambda (a b) (> (my/book--score a q) (my/book--score b q))))))
+
+  (defun my/book--score (b q)
+    "候補 B のクエリ Q への一致度スコア。
+  各語: タイトル一致+2/著者一致+1、先頭語のタイトル前方一致は+4。"
+    (let ((title (or (alist-get 'title b) ""))
+          (author (or (alist-get 'author b) ""))
+          (tokens (split-string q "[ 　]+" t))
+          (s 0))
+      (when (and tokens (string-prefix-p (car tokens) title))
+        (setq s (+ s 4)))
+      (dolist (tok tokens s)
+        (when (string-match-p (regexp-quote tok) title) (setq s (+ s 2)))
+        (when (string-match-p (regexp-quote tok) author) (setq s (+ s 1))))))
+
+  (defun my/book--select (cands)
+    "書誌候補 CANDS の一覧から1冊選んで alist を返す。"
+    (let* ((table (mapcar (lambda (b)
+                            (cons (format "%s / %s / %s%s"
+                                          (alist-get 'title b)
+                                          (or (alist-get 'author b) "?")
+                                          (or (alist-get 'publisher b) "?")
+                                          (let ((d (alist-get 'pubdate b)))
+                                            (if d (format " (%s)" d) "")))
+                                  b))
+                          cands))
+           (choice (completing-read "候補から選択: " (mapcar #'car table) nil t)))
+      (cdr (assoc choice table))))
+
+  (defun my/book--fetch (query)
+    "QUERY(ISBNまたはタイトル)から書誌情報の alist を返す。
+  ISBNなら openBD → OpenLibrary の順で即確定。
+  タイトルなら NDL → OpenLibrary で検索し、候補一覧から選択する。"
+    (let* ((isbn (replace-regexp-in-string "[- 　]" "" query))
+           (isbn-p (string-match-p "\\`[0-9]\\{9,12\\}[0-9Xx]\\'" isbn)))
+      (if isbn-p
+          (or (my/book--fetch-openbd isbn)
+              (my/book--fetch-openlibrary-isbn isbn)
+              (user-error "書誌情報が見つかりません: %s" query))
+        (let ((cands (or (my/book--search-ndl query)
+                         (my/book--search-openlibrary query))))
+          (unless cands (user-error "書誌情報が見つかりません: %s" query))
+          (my/book--select (my/book--dedup-sort cands query))))))
+
+  (defun my/book--clean (s)
+    "改行・タブを潰して前後の空白を落とす。"
+    (when s (string-trim (replace-regexp-in-string "[\n\r\t]+" " " s))))
+
+  (defun my/book--prop (key val)
+    "VAL が空でなければプロパティ行の文字列を返す。"
+    (let ((v (my/book--clean val)))
+      (when (and v (not (string-empty-p v)))
+        (format ":%s: %s\n" key v))))
+
+  (defun my/org-capture-book-entry ()
+    "org-capture 用：書誌情報を取得して蔵書エントリ文字列を組み立てる。"
+    (let* ((q (read-string "ISBN または タイトル: "))
+           (b (my/book--fetch q))
+           (owned (y-or-n-p (format "「%s」を所有していますか? " (alist-get 'title b))))
+           (platform (when owned
+                       (completing-read "プラットフォーム(空でスキップ): "
+                                        '("Kindle" "物理" "PDF" "DMM" "Audible" "Unlimited")))))
+      (concat
+       "* " (if owned "TODO" "WAITING") " " (my/book--clean (alist-get 'title b)) "\n"
+       ":PROPERTIES:\n"
+       ":所有: " (if owned "Yes" "No") "\n"
+       (when owned (my/book--prop "プラットフォーム" platform))
+       ":経費: No\n"
+       (my/book--prop "著者" (alist-get 'author b))
+       (my/book--prop "出版社" (alist-get 'publisher b))
+       (my/book--prop "出版日" (alist-get 'pubdate b))
+       (my/book--prop "ISBN" (alist-get 'isbn b))
+       (my/book--prop "COVER"
+                      (let ((c (alist-get 'cover b)))
+                        (if (and c (not (string-empty-p c)))
+                            c
+                          (when-let ((i (alist-get 'isbn b)))
+                            (format "https://covers.openlibrary.org/b/isbn/%s-M.jpg" i)))))
+       ":CREATED: " (format-time-string "[%Y-%m-%d %H:%M]") "\n"
+       ":END:\n"
+       "%?")))
+
+  (add-to-list 'org-capture-templates
+               '("B" "📚 本（ISBN自動取得）" entry
+                 (file "~/Dropbox/Org/books/books.org")
+                 "%(my/org-capture-book-entry)"
+                 :prepend t)
+               t)
+
+  (defun my/book--stamp-done ()
+    "books.org で見出しを DONE にしたら読了日を自動記録する。
+  手動で付けた読了があれば上書きしない。"
+    (when (and (equal org-state "DONE")
+               buffer-file-name
+               (string-match-p "books\\.org\\'" buffer-file-name)
+               (not (org-entry-get nil "読了")))
+      (org-entry-put nil "読了" (format-time-string "[%Y-%m-%d]"))))
+  (add-hook 'org-after-todo-state-change-hook #'my/book--stamp-done)
+#+end_src
+
+*** Books Viewer
+~C-c b~ で蔵書リストをソート可能な表として表示する。
+RET=本文へジャンプ / g=再読込 / t・w・d=状態で絞り込み / a=全件 / S=ソート。
+#+begin_src emacs-lisp :tangle yes
+  (defvar my/books-file "~/Dropbox/Org/books/books.org"
+    "蔵書リストのorgファイル。")
+
+  (defun my/books--state-label (state)
+    "TODOキーワードを分かりやすい日本語ラベル(色付き)にする。"
+    (pcase state
+      ("TODO" (propertize "積読" 'face 'warning))
+      ("WAITING" (propertize "欲しい" 'face 'font-lock-keyword-face))
+      ("DONE" (propertize "読了" 'face 'success))
+      (_ (or state ""))))
+
+  (defun my/books--collect ()
+    "books.org の全エントリを tabulated-list 形式で返す。"
+    (with-current-buffer (find-file-noselect my/books-file)
+      (org-with-wide-buffer
+       (org-map-entries
+        (lambda ()
+          (list (point-marker)
+                (vector (my/books--state-label (org-get-todo-state))
+                        (org-get-heading t t t t)
+                        (or (org-entry-get nil "著者") "")
+                        (or (org-entry-get nil "プラットフォーム") "")
+                        (or (org-entry-get nil "読了") ""))))))))
+
+  (defvar-local my/books--state-filter nil
+    "表示する状態(TODO/WAITING/DONE)。nil なら全件。")
+
+  (define-derived-mode my/books-viewer-mode tabulated-list-mode "Books"
+    "蔵書リスト(books.org)のビューア。"
+    (setq tabulated-list-format
+          [("状態" 8 t) ("タイトル" 50 t) ("著者" 24 t) ("媒体" 10 t) ("読了" 14 t)])
+    (setq tabulated-list-padding 1)
+    (setq-local show-trailing-whitespace nil)  ;; 列詰めの行末空白が赤く光るのを防ぐ
+    (tabulated-list-init-header))
+
+  (defun my/books--refresh (&rest _)
+    "フィルタを適用して一覧を作り直す。"
+    (let ((all (my/books--collect)))
+      (setq tabulated-list-entries
+            (if my/books--state-filter
+                (seq-filter (lambda (e)
+                              (equal (aref (cadr e) 0)
+                                     (my/books--state-label my/books--state-filter)))
+                            all)
+              all))
+      (tabulated-list-print t)
+      (setq mode-line-process
+            (format " %d冊%s" (length tabulated-list-entries)
+                    (if my/books--state-filter
+                        (concat "/" (my/books--state-label my/books--state-filter))
+                      "")))))
+
+  (defun my/books-visit ()
+    "選択中の本の books.org 見出しへ移動する。"
+    (interactive)
+    (let ((m (tabulated-list-get-id)))
+      (unless m (user-error "行を選んでください"))
+      (pop-to-buffer (marker-buffer m))
+      (goto-char m)
+      (org-fold-show-context 'isearch)))
+
+  (defun my/books--set-filter (state)
+    (setq my/books--state-filter state)
+    (my/books--refresh))
+
+  (defun my/books-viewer ()
+    "蔵書リストを表形式で表示する。"
+    (interactive)
+    (with-current-buffer (get-buffer-create "*Books*")
+      (unless (derived-mode-p 'my/books-viewer-mode)
+        (my/books-viewer-mode))
+      (setq revert-buffer-function #'my/books--refresh)
+      (my/books--refresh)
+      (pop-to-buffer (current-buffer))))
+
+  (define-key my/books-viewer-mode-map (kbd "RET") #'my/books-visit)
+  (define-key my/books-viewer-mode-map (kbd "j") #'next-line)
+  (define-key my/books-viewer-mode-map (kbd "k") #'previous-line)
+  (define-key my/books-viewer-mode-map (kbd "t")
+              (lambda () (interactive) (my/books--set-filter "TODO")))
+  (define-key my/books-viewer-mode-map (kbd "w")
+              (lambda () (interactive) (my/books--set-filter "WAITING")))
+  (define-key my/books-viewer-mode-map (kbd "d")
+              (lambda () (interactive) (my/books--set-filter "DONE")))
+  (define-key my/books-viewer-mode-map (kbd "a")
+              (lambda () (interactive) (my/books--set-filter nil)))
+
+  (global-set-key (kbd "C-c b") #'my/books-viewer)
+#+end_src
+
 *** org-refile
 #+begin_src emacs-lisp :tangle yes
   ;; refile先の候補：agendaファイル群と現在バッファの見出し（3階層まで）
