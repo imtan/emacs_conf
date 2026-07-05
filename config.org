@@ -1056,6 +1056,11 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 
 ** vertico
 #+begin_src emacs-lisp :tangle yes
+  ;; ミニバッファ使用中でも別のミニバッファコマンドを許可する
+  ;; （プロンプト中のC-x C-f等が "minibuffer while in minibuffer" エラーになるのを防ぐ）
+  (setq enable-recursive-minibuffers t)
+  (minibuffer-depth-indicate-mode 1)
+
   (use-package vertico
     :straight t
     :ensure t
