@@ -150,6 +150,10 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
 *** 画像の貼り付け
 OSXやLinuxを使用する場合はpngpasteをインストールする必要がある。
 #+begin_src emacs-lisp :tangle yes
+  ;; 単独行の画像は中央揃えで表示（olivettiの中央カラムに合わせる）
+  ;; 個別に変えたい場合は #+ATTR_ORG: :align left で上書き
+  (setq org-image-align 'center)
+
   (if IS-WINDOWS
       (with-eval-after-load 'org
         (defun org-insert-clipboard-image ()
@@ -373,6 +377,17 @@ Eagleが起動している必要がある。
     (define-key org-mode-map (kbd "C-c e") #'org-insert-eagle-image-from-folder))
 #+end_src
 
+*** TODOキーワード
+#+begin_src emacs-lisp :tangle yes
+  ;; NEXT=次にやる / WAITING=返事・外部要因待ち。C-c C-t 後の一文字でも選択可
+  (setq org-todo-keywords
+        '((sequence "TODO(t)" "NEXT(n)" "WAITING(w)" "|" "DONE(d)")))
+  ;; agenda表示用の色（バッファ内のバッジ色はorg-modern-todo-facesで設定）
+  (setq org-todo-keyword-faces
+        '(("NEXT" . (:foreground "DarkOrange" :weight bold))
+          ("WAITING" . (:foreground "SteelBlue1" :weight bold))))
+#+end_src
+
 *** org-super-agenda
 #+begin_src emacs-lisp :tangle yes
   (use-package org-super-agenda
@@ -392,6 +407,8 @@ Eagleが起動している必要がある。
                          '(
                            (:name "🔥 最重要"
                                   :priority "A")
+                           (:name "⏭️ 次にやる"
+                                  :todo "NEXT")
                            (:name "📅 今日やる"
                                   :time-grid t
                                   :scheduled today)
@@ -405,6 +422,8 @@ Eagleが起動している必要がある。
                                   :tag "health")
                            (:name "🧹 雑務"
                                   :tag "life")
+                           (:name "⏳ 待ち"
+                                  :todo "WAITING")
                            (:name "📥 未整理（Inbox）"
                                   :and (:todo "TODO"
                                         :not (:tag ("game" "write" "study" "health" "life"))))
@@ -442,6 +461,9 @@ Eagleが起動している必要がある。
    ;; Org styling, hide markup etc.
    org-hide-emphasis-markers t
    org-pretty-entities t
+   ;; a_b の _ で下付きにしない（a_{b} と明示した時だけ下付き。表示と出力の両方）
+   org-use-sub-superscripts '{}
+   org-export-with-sub-superscripts '{}
 
    ;; Agenda styling
    org-agenda-tags-column 0
@@ -567,11 +589,12 @@ Eagleが起動している必要がある。
 
 *** org-roam-ui
 #+begin_src emacs-lisp :tangle yes
+  ;; :after org-roam を付けるとフック登録がorg-roamロード後になり、
+  ;; after-init発火に間に合わず永遠に起動しないので付けないこと
   (use-package org-roam-ui
     :straight (:host github :repo "org-roam/org-roam-ui" :branch "main" :files ("*.el" "out"))
-    :after org-roam
     :hook (after-init . org-roam-ui-mode)
-    :config
+    :init
     (setq org-roam-ui-sync-theme t
           org-roam-ui-follow t
           org-roam-ui-update-on-save t
@@ -593,6 +616,10 @@ Eagleが起動している必要がある。
        (?* . " ")
        (?+ . "‣")))
     (org-modern-block-name '("" . "")) ; or other chars; so top bracket is drawn promptly
+    ;; NEXT/WAITINGバッジの配色（org-todo-keyword-facesはorg-modernのバッジには効かない）
+    (org-modern-todo-faces
+     '(("NEXT" :background "DarkOrange3" :foreground "white")
+       ("WAITING" :background "SteelBlue4" :foreground "white")))
     :hook
     (org-mode . org-modern-mode)
     (org-agenda-finalize . org-modern-agenda))
@@ -613,7 +640,9 @@ Eagleが起動している必要がある。
 #+begin_src emacs-lisp :tangle yes
   (use-package org-journal
     :straight t
-    :defer t
+    ;; 遅延ロードだと magic-mode-alist 登録と agenda 統合が C-c j まで
+    ;; 有効にならず、日報が素の org-mode で開いてしまうため起動時にロードする
+    :demand t
     :bind
     ("C-c j" . org-journal-new-entry)
     :custom
@@ -623,6 +652,8 @@ Eagleが起動している必要がある。
     (org-journal-file-format "%Y%m%d.org")
     (org-journal-file-header
      "#+title: %Y-%m-%d Journal\n#+startup: folded\n\n")
+    ;; 日報内のTODO・予定をagendaに載せる
+    (org-journal-enable-agenda-integration t)
     :config
     (defvar my/org-journal-daily-template-file
       (expand-file-name "templates/journal-daily.org" user-emacs-directory)
@@ -647,6 +678,36 @@ Eagleが起動している必要がある。
 
 #+RESULTS:
 : org-journal-new-entry
+
+*** org-ql
+#+begin_src emacs-lisp :tangle yes
+  ;; 日報・org横断の検索/集計ビュー（M-x org-ql-search）
+  (use-package org-ql
+    :straight t
+    :defer t)
+#+end_src
+
+*** calfw
+#+begin_src emacs-lisp :tangle yes
+  ;; 月間カレンダーでorgの予定・日報を一覧する（本家無メンテのためhaji-ali fork）
+  (use-package calfw
+    :straight (calfw :host github :repo "haji-ali/emacs-calfw" :files ("*.el"))
+    :defer t
+    :init
+    ;; haji-ali forkはcfw:接頭辞を廃止しcalfw-に改名している
+    (autoload 'calfw-org-open-calendar "calfw-org" "orgの月間カレンダーを開く" t)
+    (defalias 'my/calendar #'calfw-org-open-calendar))
+#+end_src
+
+*** olivetti
+#+begin_src emacs-lisp :tangle yes
+  ;; 日報執筆時だけ本文を中央寄せにする
+  (use-package olivetti
+    :straight t
+    :custom
+    (olivetti-body-width 100) ; デフォルト(fill-column+2≒72)は狭いので全角50文字相当に
+    :hook (org-journal-mode . olivetti-mode))
+#+end_src
 
 *** org-captrue
 #+begin_src emacs-lisp :tangle yes
@@ -1120,14 +1181,55 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 
 #+RESULTS:
 
+** migemo
+ローマ字で日本語をインクリメンタル検索する（kensaku → 検索）。isearch（C-s）と consult-line（M-g l）に効く。
+#+begin_src emacs-lisp :tangle yes
+  (use-package migemo
+    :straight t
+    :config
+    (setq migemo-command (or (executable-find "cmigemo")
+                             "C:/Users/lacri/Repository/bin/cmigemo-default-win64/cmigemo.exe"))
+    ;; ponytail: 辞書はcmigemo.exeからの相対で解決（Windows配布物の構成前提）。
+    ;; Mac/Linuxで使うときは各OSの辞書パスへの分岐を足す
+    (setq migemo-dictionary
+          (expand-file-name "dict/utf-8/migemo-dict"
+                            (file-name-directory migemo-command)))
+    (setq migemo-options '("-q" "--emacs"))
+    (setq migemo-coding-system 'utf-8-unix)
+    ;; 高速化：パターン生成結果をキャッシュしてプロセス往復を削減
+    (setq migemo-use-pattern-alist t)
+    (setq migemo-use-frequent-pattern-alist t)
+    (setq migemo-pattern-alist-length 1024)
+    ;; 1文字入力では巨大な正規表現を作らない（isearchの固まり防止）
+    (setq migemo-isearch-min-length 2)
+    (when (and (executable-find migemo-command)
+               (file-exists-p migemo-dictionary))
+      (migemo-init)
+      ;; consult-line等の行検索（consult-locationカテゴリ）でもローマ字マッチを有効化
+      (with-eval-after-load 'orderless
+        (defun my/orderless-migemo (component)
+          (migemo-get-pattern component))
+        (orderless-define-completion-style orderless-migemo-style
+          (orderless-matching-styles
+           '(orderless-literal orderless-regexp my/orderless-migemo)))
+        (add-to-list 'completion-category-overrides
+                     '(consult-location (styles orderless-migemo-style))))))
+#+end_src
+
 ** consult
 #+begin_src emacs-lisp :tangle yes
   (use-package consult
     :straight t
     :ensure t
+    :init
+    (defun my/consult-ripgrep-org ()
+      "日報を含む ~/Dropbox/Org を全文検索する。"
+      (interactive)
+      (consult-ripgrep "~/Dropbox/Org"))
     :bind
     (("M-g f" . consult-flymake)  ;; M-g f でエラー一覧へ
-     ("M-g l" . consult-line)))
+     ("M-g l" . consult-line)
+     ("C-c n s" . my/consult-ripgrep-org)))
 #+end_src
 ** Hydra
 #+begin_src emacs-lisp :tangle yes
@@ -1486,6 +1588,8 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 
   ;; 行番号の表示
   (global-display-line-numbers-mode)
+  ;; orgでは行番号を出さない（olivettiの中央寄せと干渉して邪魔なため。org-journal-modeも派生なので対象）
+  (add-hook 'org-mode-hook (lambda () (display-line-numbers-mode -1)))
 
   ;; 末尾の空白を表示
   (setq-default show-trailing-whitespace t)
