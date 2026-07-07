@@ -76,6 +76,7 @@ ddskk/
 
 # cmigemo
 cmigemo-default-win64/
+migemo-pattern
 
 # LSPセッション（ローカルパス情報を含む）
 .lsp-session-v1
