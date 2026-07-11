@@ -30,6 +30,12 @@
 ;; 古い .elc が残っていても、新しい .el を優先して読み込む
 (setq load-prefer-newer t)
 
+;; Customizeの書き込み先を分離する。init.elはgit管理されているため、
+;; ここに書かせると個人データ（ローカルパス等）が公開リポジトリに混入する。
+;; org-journalのagenda統合も起動のたびにここへ書き込んでいた。
+;; config.el 読込中の customize 保存も拾えるよう、config より先に設定する
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+
 ;; すぐバイトコンパイルできるように定義
 (defun byte-compile-init-file ()
   "Byte-compile init.el file."
@@ -54,14 +60,5 @@
 (put 'upcase-region 'disabled nil)
 (put 'downcase-region 'disabled nil)
 
-(custom-set-variables ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(warning-suppress-types '((initialization) (comp))))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
+(when (file-exists-p custom-file)
+  (load custom-file nil 'nomessage))

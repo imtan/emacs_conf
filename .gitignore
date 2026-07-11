@@ -62,8 +62,8 @@ straight/build-cache.el
 straight/modified/
 straight/repos/*/
 
-# カスタムファイル（オプション：コミットしたい場合はコメントアウト）
-# custom.el
+# Customize書き込み先（ローカルパス等の個人データを含むため除外）
+custom.el
 
 # OS固有
 .DS_Store
