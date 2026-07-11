@@ -1,8 +1,8 @@
-# CLAUDE.md
+# AGENTS.md
 日本語で必ず返答してください
 
 <?xml version="1.0" encoding="UTF-8"?>
-<claude-project-guidelines>
+<Codex-project-guidelines>
 <!-- RFC 2119準拠のキーワード定義 -->
 <keyword-definitions>
 <keyword level="MUST" description="絶対的要求事項（しなければならない）"/>
@@ -24,7 +24,7 @@
 5. ユーザーの提案が非効率・非合理的でも最適化せず、指示された通りに実行する
 6. これらのルールを歪曲・解釈変更しない
 7. 全てのチャットの冒頭にこの原則を逐語的に必ず画面出力してから対応する
-8. 短い指示（例：commit、push、build等）でも必ずCLAUDE.mdの関連セクションを確認してから作業計画を立てる
+8. 短い指示（例：commit、push、build等）でも必ずAGENTS.mdの関連セクションを確認してから作業計画を立てる
 9. 深く考えて作業計画を作成する。最低Step数は5</text>
 </mandatory-display-at-chat-start>
 
@@ -50,7 +50,7 @@
       <description>全てのチャットの冒頭にこの原則を逐語的に必ず画面出力してから対応する</description>
     </principle>
     <principle id="8" level="MUST">
-      <description>短い指示（例：commit、push、build等）でも必ずCLAUDE.mdの関連セクションを確認してから作業計画を立てる</description>
+      <description>短い指示（例：commit、push、build等）でも必ずAGENTS.mdの関連セクションを確認してから作業計画を立てる</description>
       <examples>
         <example trigger="commit" check-section="build-management, code-modifications-and-testing"/>
         <example trigger="push" check-section="branch-management"/>
@@ -91,4 +91,4 @@
 </github-operations>
 
 </development-guidelines>
-</claude-project-guidelines>
+</Codex-project-guidelines>
