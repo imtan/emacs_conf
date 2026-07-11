@@ -1,177 +1,90 @@
 # Emacs設定
 
-このディレクトリには、Emacsのパーソナル設定が含まれています。
+Org-modeのリテラートプログラミングで管理したEmacs設定です。
 
 ## ファイル構成
 
-- `init.org` - Org-modeで管理されたメイン設定ファイル（リテラートプログラミング）
-- `init.el` - init.orgから生成される実際の設定ファイル
-- `init-linux.el` - Linux固有の設定
-- `init-osx.el` - macOS固有の設定
-- `.gitignore` - Gitで管理しないファイルの指定
-- `PACKAGES.md` - インストール済みパッケージ一覧
-- `SECURITY_AUDIT.md` - セキュリティ監査レポート
+| ファイル | 役割 | Git管理 |
+|---|---|---|
+| `config.org` | メイン設定（編集はここで行う） | ○ |
+| `early-init.org` | early-init設定（straightブートストラップ等） | ○ |
+| `init.el` | 起動ブートストラップ。`.org`が新しいときだけtangleして`config.el`等を生成 | ○ |
+| `config.el` / `early-init.el` | tangleで自動生成される実体 | ×（.gitignore） |
+| `custom.el` | Customizeの書き込み先（個人データを含むため分離） | ×（.gitignore） |
+| `consult-yt.el` | yt-dlpによるYouTube検索（`C-c y`） | ○ |
+| `templates/journal-daily.org` | org-journalの日次テンプレート | ○ |
+| `windows/paste_image.ps1` | Windowsでクリップボード画像を保存するスクリプト | ○ |
+| `skk-get-jisyo/` | DDSKK用辞書 | ○ |
 
-## 使い方
+## セットアップ
 
-### 初回セットアップ
+1. このリポジトリを `~/.emacs.d` にclone
+2. Emacsを起動すると、init.elが`.org`をtangleし、straight.elがパッケージを自動インストールする
+3. APIキー（Gemini執筆支援を使う場合）は `~/.authinfo` または環境変数で設定:
 
-1. **認証情報の設定**
-
-APIキーは環境変数または `~/.authinfo.gpg` で管理します:
+```
+# ~/.authinfo（または ~/.authinfo.gpg）
+machine generativelanguage.googleapis.com login apikey password your-gemini-api-key
+```
 
 ```bash
-# 環境変数で設定する場合
-export LINEAR_API_KEY="your-linear-api-key"
-export GCAL_CLIENT_ID="your-google-client-id"
-export GCAL_CLIENT_SECRET="your-google-client-secret"
-export OPENAI_API_KEY="your-openai-api-key"
+# または環境変数
+export GEMINI_API_KEY="your-gemini-api-key"
 ```
 
-または `~/.authinfo.gpg` (GPG暗号化) で管理:
+秘密情報をこのリポジトリ内のファイルに書かないこと（.gitignoreで機密系パターンは除外済み）。
 
-```
-machine api.linear.app login user password your-linear-api-key
-machine gcal-client-id login user password your-google-client-id
-machine gcal-client-secret login user password your-google-client-secret
-machine api.openai.com login user password your-openai-api-key
-```
+## 設定の編集フロー
 
-2. **Emacsを起動**
+1. `C-c ,` で `config.org` を開いて編集・保存
+2. Emacsを再起動すると、`config.org` が `config.el` より新しい場合のみ自動でtangleされて反映される
+   （すぐ反映したい場合は `C-c C-v t` で手動tangle → `M-x eval-buffer`）
 
-Emacsを起動すると、straight.elが自動的にパッケージをインストールします。
-
-### init.orgから設定を編集
-
-設定は `init.org` で管理されています。Org-modeのリテラートプログラミング形式で記述されており、各セクションごとに整理されています。
-
-**自動生成:**
-- `init.org` を保存してEmacsを再起動すると、自動的に `init.el` が生成されます
-- `early-init.el` が `init.org` の変更を検知して自動的にtangleします
-
-**手動生成:**
-1. `C-c ,` で `init.org` を開く
-2. `init.org` を編集
-3. `C-c C-v t` (org-babel-tangle) で `init.el` に変換
-4. `M-x eval-buffer` または Emacs再起動で反映
-
-**メリット:**
-- コードブロックごとに整理された読みやすい設定
-- 目次から各セクションへジャンプ可能
-- コメントや説明を自然に記述できる
-- `:tangle no` で特定のブロックを除外可能
+`.el` を直接編集しないこと（tangleで上書きされる）。
 
 ## 主な機能
 
-### Org-mode
-- **Org-roam**: Zettelkasten形式のノート管理
-- **Org-journal**: 日記機能
-- **Org-capture**: タスクキャプチャ
-- **Org-gcal**: Googleカレンダー同期
-- **Org-modern**: モダンなUI
-
-### AI統合
-- **ChatGPT Shell**: ChatGPT統合 (`C-x m`)
-- **GitHub Copilot**: コード補完 (`C-TAB`)
-- **Claude Code IDE**: Claude統合 (`C-c C-c`)
-
-### エディタ機能
-- **Magit**: Git操作 (`C-c g`)
-- **Projectile**: プロジェクト管理 (`C-c p`)
-- **LSP Mode**: 言語サーバー統合
-- **Flycheck**: シンタックスチェック
+- **Org-mode まわり**: org-roam（Zettelkasten）、org-journal（日報＋日次テンプレート）、org-capture（タスク／ISBN自動取得の蔵書キャプチャ）、org-super-agenda、org-ql、calfw（月間カレンダー）、org-modern
+- **蔵書管理**: openBD / OpenLibrary / NDLサーチから書誌を自動取得、`C-c b` のBooks Viewerで一覧・絞り込み
+- **画像**: クリップボード画像貼り付け（Windows/macOS対応）、Eagleライブラリからのプレビュー付き画像挿入
+- **日本語入力・検索**: DDSKK、migemo（ローマ字で日本語をインクリメンタル検索）
+- **補完・検索UI**: vertico + orderless + consult
+- **AI統合**: Claude Code（vterm内で起動・操作）、Gemini執筆支援（gptelで翻訳・校正・要約・下書き生成）
+- **開発**: magit、projectile、lsp-mode、flycheck、GDScript（Godot）、Ruby/Rails
 
 ## 主なキーバインド
 
 | キー | 機能 |
 |------|------|
-| `C-c ,` | init.elを開く |
-| `C-c a` | Org-agenda |
-| `C-c c` | Org-capture |
-| `C-c g` | Magit status |
-| `C-c n f` | Org-roam node find |
-| `C-c n i` | Org-roam node insert |
-| `C-x m` | ChatGPT shell |
-| `C-TAB` | Copilot補完 |
-| `F8` | Neotreeトグル |
-| `C-\\` | SKK日本語入力 |
-
-詳細は `PACKAGES.md` を参照してください。
-
-## Gitで管理
-
-### 初回コミット
-
-```bash
-cd ~/.emacs.d
-git init
-git add init.org early-init.el init-linux.el init-osx.el .gitignore README.md PACKAGES.md
-git commit -m "Initial commit: Emacs configuration
-
-- init.org: Main configuration in literate programming style
-- early-init.el: Auto-tangle init.org to init.el
-- Security improvements: API keys moved to environment variables"
-```
-
-### リモートリポジトリへのプッシュ
-
-```bash
-git remote add origin https://github.com/yourusername/emacs.d.git
-git push -u origin main
-```
-
-**注意**:
-- `init.el` は自動生成されるため、Gitで管理しません（.gitignoreに含まれています）
-- `.gitignore` により、機密情報を含むファイルは自動的に除外されます
-- プッシュ前に古いAPIキーを必ず無効化してください
-
-## セキュリティ
-
-- APIキーは環境変数または `~/.authinfo.gpg` で管理
-- 機密ファイルは `.gitignore` で除外
-- 詳細は `SECURITY_AUDIT.md` を参照
+| `C-c ,` | config.orgを開く |
+| `C-c a` | org-agenda |
+| `C-c c` | org-capture（`B`=ISBN自動取得の蔵書キャプチャ） |
+| `C-c j` | org-journal 日報 |
+| `C-c b` | Books Viewer（蔵書一覧） |
+| `C-c n f` / `C-c n i` | org-roam ノード検索／挿入 |
+| `C-c n s` | ~/Dropbox/Org 全文検索（ripgrep） |
+| `C-x g` / `C-c g` | magit-status / magit-file-dispatch |
+| `C-c p` | projectile |
+| `C-M-y` | クリップボード画像を貼り付け（org-mode） |
+| `C-M-e` / `C-c e` | Eagleから画像挿入：検索／フォルダ選択（org-mode） |
+| `C-c C c` ほか | Claude Code（`t`=トグル `n`=新規 `r`=リージョン送信 `f`=ファイル送信） |
+| `C-c G ...` | Gemini執筆支援（翻訳・校正・要約・下書き） |
+| `C-c y` | YouTube検索（yt-dlp） |
+| `C-c v` | PowerShell経由でクリップボード貼り付け |
+| `C-\` | SKK日本語入力 |
+| `M-g l` | consult-line（migemo対応） |
+| `<f2>` | ズームhydra |
 
 ## トラブルシューティング
 
-### パッケージのインストールエラー
-
-```elisp
-M-x straight-check-all
-M-x straight-rebuild-all
+```
+M-x straight-check-all      ; パッケージの整合性チェック
+M-x straight-rebuild-all    ; 全パッケージ再ビルド
+M-x straight-pull-all       ; 全パッケージ更新
 ```
 
-### 設定の再読み込み
-
-```elisp
-M-x eval-buffer
-```
-
-または Emacs再起動
-
-## ディレクトリ構造
-
-```
-.emacs.d/
-├── init.org              # メイン設定（Org-mode）
-├── init.el               # 生成された設定ファイル
-├── init-linux.el         # Linux固有設定
-├── init-osx.el           # macOS固有設定
-├── .gitignore            # Git除外設定
-├── README.md             # このファイル
-├── PACKAGES.md           # パッケージ一覧
-├── SECURITY_AUDIT.md     # セキュリティ監査
-├── straight/             # パッケージ（除外）
-├── elpa/                 # 追加パッケージ（除外）
-└── sync-conflicts-backup/  # 同期競合バックアップ
-```
+Emacs外でパッケージソースを編集した場合は `M-x straight-rebuild-package` で手動再ビルドする（起動高速化のため全スキャンは無効化してある）。
 
 ## ライセンス
 
 個人利用のため、ライセンスは設定していません。
-
-## 参考リンク
-
-- [Emacs公式](https://www.gnu.org/software/emacs/)
-- [Org-mode](https://orgmode.org/)
-- [Straight.el](https://github.com/raxod502/straight.el)
-- [Org-roam](https://www.orgroam.com/)
