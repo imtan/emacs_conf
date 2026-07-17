@@ -1532,6 +1532,13 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
     (add-hook 'compilation-filter-hook 'inf-ruby-auto-enter-and-focus)
     (add-hook 'ruby-base-mode-hook 'inf-ruby-minor-mode)
     (inf-ruby-enable-auto-breakpoint))
+
+  ;; Ruby LSP。ruby-lsp gem があるマシン（Mac/Linux開発機）でのみ起動する。
+  ;; Ruby未導入のWindows機では何もしない（共有設定のためガード必須）
+  (defun my/lsp-ruby-maybe ()
+    (when (executable-find "ruby-lsp")
+      (lsp-deferred)))
+  (add-hook 'ruby-base-mode-hook #'my/lsp-ruby-maybe)
 #+end_src
 *** Rails
 #+begin_src emacs-lisp :tangle yes
@@ -1539,8 +1546,46 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
     :straight t
     :after projectile
     :config
-    (projectile-rails-global-mode))
-    #+end_src
+    (projectile-rails-global-mode)
+    ;; C-c R で Railsナビのhydraメニュー（C-c r はskilltreeで使用済み）。
+    ;; :color blue = 1回実行したら閉じる。全コマンドは M-x projectile-rails- で
+    (defhydra hydra-rails (:color blue)
+      "Rails"
+      ("m" projectile-rails-find-model "model")
+      ("c" projectile-rails-find-controller "controller")
+      ("v" projectile-rails-find-view "view")
+      ("h" projectile-rails-find-helper "helper")
+      ("M" projectile-rails-find-current-model "今のmodel")
+      ("C" projectile-rails-find-current-controller "今のcontroller")
+      ("V" projectile-rails-find-current-view "今のview")
+      ("r" projectile-rails-goto-routes "routes")
+      ("s" projectile-rails-goto-schema "schema")
+      ("G" projectile-rails-goto-gemfile "Gemfile")
+      ("!" projectile-rails-console "console")
+      ("S" projectile-rails-server "server")
+      ("q" nil "閉じる"))
+    (define-key projectile-rails-mode-map (kbd "C-c R") 'hydra-rails/body))
+
+  ;; ERBテンプレート（app/views/**/*.html.erb 等）
+  (use-package web-mode
+    :straight t
+    :mode "\\.erb\\'")
+
+  ;; Slimテンプレート（*.slim, *.html.slim）
+  (use-package slim-mode
+    :straight t
+    :mode "\\.slim\\'")
+
+  ;; RSpec。*_spec.rb で C-c , プレフィックスが有効になる
+  ;; （v=ファイル実行 s=カーソル位置の例だけ a=全spec r=再実行 t=spec⇔実装の行き来）
+  (use-package rspec-mode
+    :straight t)
+
+  ;; Rails設定・ロケールファイル用（database.yml, config/locales/*.yml）
+  (use-package yaml-mode
+    :straight t
+    :mode "\\.ya?ml\\'")
+#+end_src
 
 #+RESULTS:
 
