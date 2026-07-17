@@ -680,6 +680,14 @@ Eagleが起動している必要がある。
     :defer t)
 #+end_src
 
+*** skilltree-menu
+#+begin_src emacs-lisp :tangle yes
+  ;; SkillTreeSystemの「今日のrunメニュー」（C-c r）。
+  ;; ~/.emacs.d はload-path外のため直接ロードする
+  (load (expand-file-name "skilltree-menu.el" user-emacs-directory) t 'nomessage)
+  (global-set-key (kbd "C-c r") #'skilltree-run-menu)
+#+end_src
+
 *** calfw
 #+begin_src emacs-lisp :tangle yes
   ;; 月間カレンダーでorgの予定・日報を一覧する（本家無メンテのためhaji-ali fork）
