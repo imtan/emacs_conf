@@ -645,6 +645,8 @@ Eagleが起動している必要がある。
      "#+title: %Y-%m-%d Journal\n#+startup: folded\n\n")
     ;; 日報内のTODO・予定をagendaに載せる
     (org-journal-enable-agenda-integration t)
+    ;; 深夜3時までは前日扱いにする（org本体の変数。org-journalが尊重する）
+    (org-extend-today-until 3)
     :config
     (defvar my/org-journal-daily-template-file
       (expand-file-name "templates/journal-daily.org" user-emacs-directory)
