@@ -1231,6 +1231,10 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 
   ;; YouTube検索（C-c y）。~/.emacs.d はload-path外のため直接ロードする
   (load (expand-file-name "consult-yt.el" user-emacs-directory) t 'nomessage)
+
+  ;; YouTube検索結果バッファ（C-c Y）。サムネイル付き・[もっと見る]でページング
+  (load (expand-file-name "yt-browse.el" user-emacs-directory) t 'nomessage)
+  (global-set-key (kbd "C-c Y") #'my/youtube-browse)
 #+end_src
 ** Hydra
 #+begin_src emacs-lisp :tangle yes

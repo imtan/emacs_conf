@@ -13,7 +13,7 @@
   "Path to yt-dlp executable."
   :type 'string)
 
-(defcustom my/consult-youtube-max-results 20
+(defcustom my/consult-youtube-max-results 50
   "Max number of results to fetch from YouTube."
   :type 'integer)
 
