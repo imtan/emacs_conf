@@ -1471,6 +1471,33 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
     (define-key vterm-mode-map (kbd "C-c C t") #'my/claude-code-toggle)
     (define-key vterm-mode-map (kbd "C-c C n") #'my/claude-code-new-session))
 #+end_src
+
+*** agent-shell (ACP)
+ACP (Agent Client Protocol) 経由でClaude Code等のエージェントと対話する
+ネイティブなEmacsバッファ。vterm版と違い、comintベースの普通のバッファとして
+コピー・検索・履歴操作ができる。依存の ~shell-maker~ / ~acp~ は自動で入る。
+
+アダプタ ~claude-agent-acp~ がPATHに通っている必要がある。
+- NixOS: ~claude-agent-acp~ パッケージを追加
+- その他: ~npm install -g @agentclientprotocol/claude-agent-acp~
+
+認証はAPIキーではなく ~claude~ CLIのログイン（サブスクリプション）を使う。
+
+| キーバインド | 動作                           |
+|--------------+--------------------------------|
+| C-c C a      | Claude Code (agent-shell) 起動 |
+
+#+begin_src emacs-lisp :tangle yes
+  (use-package agent-shell
+    :straight t
+    :commands (agent-shell agent-shell-anthropic-start-claude-code)
+    :init
+    (define-key my/claude-code-map (kbd "a") #'agent-shell-anthropic-start-claude-code)
+    :config
+    ;; APIキー(ANTHROPIC_API_KEY)ではなくclaudeログインを使う
+    (setq agent-shell-anthropic-authentication
+          (agent-shell-anthropic-make-authentication :login t)))
+#+end_src
 ** Programming
 *** flycheck
 #+begin_src emacs-lisp :tangle yes
