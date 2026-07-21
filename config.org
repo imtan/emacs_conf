@@ -1188,11 +1188,21 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
     :config
     (setq migemo-command (or (executable-find "cmigemo")
                              (expand-file-name "~/Repository/bin/cmigemo-default-win64/cmigemo.exe")))
-    ;; ponytail: 辞書はcmigemo.exeからの相対で解決（Windows配布物の構成前提）。
-    ;; Mac/Linuxで使うときは各OSの辞書パスへの分岐を足す
+    ;; 辞書パスはOS/配布形態で異なるため、cmigemoバイナリ位置から相対で候補を探索する。
+    ;;   Windows配布物: <bin>/dict/utf-8/migemo-dict
+    ;;   Nix/Linux/brew: <bin>/../share/migemo/utf-8/migemo-dict
+    ;; file-truename で symlink（/run/current-system/sw/bin 等）を実体へ解決してから相対解決。
     (setq migemo-dictionary
-          (expand-file-name "dict/utf-8/migemo-dict"
-                            (file-name-directory migemo-command)))
+          (let ((bin-dir (file-name-directory (file-truename migemo-command))))
+            (or (seq-find
+                 #'file-exists-p
+                 (list
+                  (expand-file-name "dict/utf-8/migemo-dict" bin-dir)
+                  (expand-file-name "../share/migemo/utf-8/migemo-dict" bin-dir)
+                  "/usr/share/migemo/utf-8/migemo-dict"
+                  "/usr/share/cmigemo/utf-8/migemo-dict"))
+                ;; 見つからない場合も従来パスを設定（後段の file-exists-p ガードで無害化）
+                (expand-file-name "dict/utf-8/migemo-dict" bin-dir))))
     (setq migemo-options '("-q" "--emacs"))
     (setq migemo-coding-system 'utf-8-unix)
     ;; 高速化：パターン生成結果をキャッシュしてプロセス往復を削減
