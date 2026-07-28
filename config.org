@@ -1477,6 +1477,62 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
     (define-key vterm-mode-map (kbd "C-c C t") #'my/claude-code-toggle)
     (define-key vterm-mode-map (kbd "C-c C n") #'my/claude-code-new-session))
 #+end_src
+** ai-ide
+AIエージェント（Claude Code / Codex CLI）の編集をEmacsで観測する自作レイヤ（=ai-ide.el=）。
+エージェント側のPostToolUseフックが =~/.cache/ai-ide/spool/= にJSONを落とし、
+Emacsが file-notify で拾ってバッファ追従・overlay・checkpoint差分・org-journal日報を行う。
+フック本体は =~/.local/bin/ai-ide-hook.sh=、登録は =~/.claude/settings.json= と =~/.codex/hooks.json=。
+spoolはDropboxの外に置くこと（同期書き戻しでfile-notifyが二重発火する）。
+
+=C-c i= でチートシート付きメニュー（hydra）が開く。キーは覚えなくてよい。
+
+| キーバインド | 動作                                         |
+|--------------+----------------------------------------------|
+| C-c i c      | checkpoint（エージェント実行前に打つ）       |
+| C-c i d      | checkpointからの差分（diff-mode・構文色付き）|
+| C-c i D      | このファイルだけcheckpointとediff            |
+| C-c i j      | digestを日報に追記                           |
+| C-c i n / p  | AIが書いた箇所を巡回                         |
+| C-c i k      | overlayを消す（C-uで全バッファ）             |
+| C-c i l      | イベント一覧                                 |
+| C-c i r      | 未保存バッファとの衝突をediffで解決          |
+
+#+begin_src emacs-lisp :tangle yes
+  ;; ~/.emacs.d はload-path外のため直接ロードする。
+  ;; プレフィクスは C-c i（C-c a はorg-agendaで使用中）
+  (load (expand-file-name "ai-ide.el" user-emacs-directory) t 'nomessage)
+  (when (fboundp 'ai-ide-mode)
+    (ai-ide-mode 1)
+
+    ;; C-c i でワークフローのチートシートを兼ねたメニューを開く。
+    ;; キーは ai-ide-command-map と同じ並びなので直打ちの記憶もそのまま使える
+    (defhydra hydra-ai-ide (:color blue :hint nil)
+      "
+ AI編集の観測   流れ: _c_ → エージェントに作業させる → _n_/_p_ で巡回 → _d_ で差分 → _j_ で日報 → _k_
+
+  _c_: checkpoint を切る（実行前に・完了通知を待つ）   _n_: 次のAI編集箇所へ
+  _d_: checkpoint からの差分を通し読み                 _p_: 前のAI編集箇所へ
+  _D_: このファイルだけ ediff                          _k_: ハイライト消去（C-u で全バッファ）
+  _j_: 日報に digest を追記                            _l_: イベント一覧
+  _r_: 未保存バッファとの衝突を ediff で解決           _q_: 閉じる
+"
+      ("c" ai-ide-checkpoint)
+      ("d" ai-ide-diff)
+      ("D" ai-ide-diff-file)
+      ("j" ai-ide-journal)
+      ("n" ai-ide-next-mark :color red)
+      ("p" ai-ide-prev-mark :color red)
+      ("k" ai-ide-clear-marks)
+      ("l" ai-ide-list)
+      ("r" ai-ide-resolve-conflict)
+      ("q" nil))
+    (define-key ai-ide-mode-map (kbd "C-c i") #'hydra-ai-ide/body))
+
+  ;; ai-ide の対象外（エージェントが触らないファイル）は素のauto-revertに任せる
+  (setq auto-revert-avoid-polling t
+        auto-revert-verbose nil)
+  (global-auto-revert-mode 1)
+#+end_src
 ** Programming
 *** flycheck
 #+begin_src emacs-lisp :tangle yes
