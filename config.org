@@ -1123,6 +1123,13 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
   (add-hook 'org-mode-hook
             (lambda ()
               (add-hook 'after-save-hook #'org-display-inline-images nil t)))
+
+  ;; 読めない画像リンク（Dropboxのオンラインのみファイル等）はプレビューを
+  ;; スキップする。読み込みエラーが find-file 全体を巻き込み、起動時の
+  ;; org-roam-db-sync ごと止まるのを防ぐ
+  (with-eval-after-load 'org
+    (define-advice org--create-inline-image (:around (fn &rest args) my/skip-unreadable)
+      (ignore-errors (apply fn args))))
 #+end_src
 
 ** vertico
