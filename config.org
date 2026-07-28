@@ -688,6 +688,15 @@ Eagleが起動している必要がある。
   (global-set-key (kbd "C-c r") #'skilltree-run-menu)
 #+end_src
 
+*** feynman
+Feynman学習システム（learning-system.md）のEmacs面（C-c f）。
+復習期日到来エントリとREADYフロンティアを一覧し、Claude Codeの
+~/feynman~ セッションをEmacs内端末で起動する。書き込みはスキル側の責務。
+#+begin_src emacs-lisp :tangle yes
+  (load (expand-file-name "feynman.el" user-emacs-directory) t 'nomessage)
+  (global-set-key (kbd "C-c f") #'feynman-menu)
+#+end_src
+
 *** calfw
 #+begin_src emacs-lisp :tangle yes
   ;; 月間カレンダーでorgの予定・日報を一覧する（本家無メンテのためhaji-ali fork）
