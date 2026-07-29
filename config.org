@@ -664,10 +664,22 @@ Eagleが起動している必要がある。
               (end-of-line)
               (insert "\n")
               (insert-file-contents my/org-journal-daily-template-file))))))
+    (defun my/org-journal-record-condition ()
+      "エントリ作成時に体調(1〜5)を1キーで聞き、見出しの時刻の右に★で追記する。
+例: ** =13:44= ★★★ タイトル。1〜5以外のキーでスキップ。
+記録後はカーソルを星の右に置くので、そのままタイトルを打てる。"
+      (when (eq this-command 'org-journal-new-entry)
+        (let ((ch (read-char "体調 [1-5]（他のキーでスキップ）: ")))
+          (when (and (characterp ch) (<= ?1 ch ?5))
+            (org-back-to-heading t)
+            (end-of-line)
+            (insert " " (make-string (- ch ?0) ?★) " ")))))
     :hook
     ;; after-entry-create だと ** 時刻見出しが先に挿入されガードに引っかかるため、
     ;; 日付見出し新規作成時（＝その日の最初の1回）だけ走る header-create を使う
-    (org-journal-after-header-create . my/org-journal-insert-daily-template))
+    (org-journal-after-header-create . my/org-journal-insert-daily-template)
+    ;; 体調プロンプトは毎エントリ作成後に出す
+    (org-journal-after-entry-create . my/org-journal-record-condition))
 #+end_src
 
 #+RESULTS:
