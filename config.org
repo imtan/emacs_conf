@@ -639,8 +639,11 @@ Eagleが起動している必要がある。
     :custom
     (org-journal-dir "~/Dropbox/Org")
     (org-journal-date-format "%A, %d %B %Y")
-    ;; 時刻は = で囲んで verbatim 表示にする（例: ** =13:04=）
+    ;; 時刻は = で囲んで verbatim 表示にする（例: *** =13:04=）
     (org-journal-time-format "=%R=\n")
+    ;; エントリは *** で作る。エントリはファイル末尾に追記されるため、
+    ;; テンプレート末尾の「** 今日の出来事」の配下にぶら下がる
+    (org-journal-time-prefix "*** ")
     (org-journal-file-format "%Y%m%d.org")
     (org-journal-file-header
      "#+title: %Y-%m-%d Journal\n#+startup: folded\n\n")
@@ -1553,6 +1556,10 @@ spoolはDropboxの外に置くこと（同期書き戻しでfile-notifyが二重
   (load (expand-file-name "ai-ide.el" user-emacs-directory) t 'nomessage)
   (when (fboundp 'ai-ide-mode)
     (ai-ide-mode 1)
+
+    ;; 日報digestの見出しも *** に（C-c j のエントリと同じく「今日の出来事」配下に並べる。
+    ;; ** のままだと以降の *** エントリが digest の子になってしまう）
+    (setq ai-ide-journal-level 3)
 
     ;; C-c i でワークフローのチートシートを兼ねたメニューを開く。
     ;; キーは ai-ide-command-map と同じ並びなので直打ちの記憶もそのまま使える
