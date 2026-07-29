@@ -1204,11 +1204,21 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
     :config
     (setq migemo-command (or (executable-find "cmigemo")
                              (expand-file-name "~/Repository/bin/cmigemo-default-win64/cmigemo.exe")))
-    ;; ponytail: 辞書はcmigemo.exeからの相対で解決（Windows配布物の構成前提）。
-    ;; Mac/Linuxで使うときは各OSの辞書パスへの分岐を足す
+    ;; 辞書パスはOS/配布形態で異なるため、cmigemoバイナリ位置から相対で候補を探索する。
+    ;;   Windows配布物: <bin>/dict/utf-8/migemo-dict
+    ;;   Nix/Linux/brew: <bin>/../share/migemo/utf-8/migemo-dict
+    ;; file-truename で symlink（/run/current-system/sw/bin 等）を実体へ解決してから相対解決。
     (setq migemo-dictionary
-          (expand-file-name "dict/utf-8/migemo-dict"
-                            (file-name-directory migemo-command)))
+          (let ((bin-dir (file-name-directory (file-truename migemo-command))))
+            (or (seq-find
+                 #'file-exists-p
+                 (list
+                  (expand-file-name "dict/utf-8/migemo-dict" bin-dir)
+                  (expand-file-name "../share/migemo/utf-8/migemo-dict" bin-dir)
+                  "/usr/share/migemo/utf-8/migemo-dict"
+                  "/usr/share/cmigemo/utf-8/migemo-dict"))
+                ;; 見つからない場合も従来パスを設定（後段の file-exists-p ガードで無害化）
+                (expand-file-name "dict/utf-8/migemo-dict" bin-dir))))
     (setq migemo-options '("-q" "--emacs"))
     (setq migemo-coding-system 'utf-8-unix)
     ;; 高速化：パターン生成結果をキャッシュしてプロセス往復を削減
@@ -1476,6 +1486,33 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
   (with-eval-after-load 'vterm
     (define-key vterm-mode-map (kbd "C-c C t") #'my/claude-code-toggle)
     (define-key vterm-mode-map (kbd "C-c C n") #'my/claude-code-new-session))
+#+end_src
+
+*** agent-shell (ACP)
+ACP (Agent Client Protocol) 経由でClaude Code等のエージェントと対話する
+ネイティブなEmacsバッファ。vterm版と違い、comintベースの普通のバッファとして
+コピー・検索・履歴操作ができる。依存の ~shell-maker~ / ~acp~ は自動で入る。
+
+アダプタ ~claude-agent-acp~ がPATHに通っている必要がある。
+- NixOS: ~claude-agent-acp~ パッケージを追加
+- その他: ~npm install -g @agentclientprotocol/claude-agent-acp~
+
+認証はAPIキーではなく ~claude~ CLIのログイン（サブスクリプション）を使う。
+
+| キーバインド | 動作                           |
+|--------------+--------------------------------|
+| C-c C a      | Claude Code (agent-shell) 起動 |
+
+#+begin_src emacs-lisp :tangle yes
+  (use-package agent-shell
+    :straight t
+    :commands (agent-shell agent-shell-anthropic-start-claude-code)
+    :init
+    (define-key my/claude-code-map (kbd "a") #'agent-shell-anthropic-start-claude-code)
+    :config
+    ;; APIキー(ANTHROPIC_API_KEY)ではなくclaudeログインを使う
+    (setq agent-shell-anthropic-authentication
+          (agent-shell-anthropic-make-authentication :login t)))
 #+end_src
 ** ai-ide
 AIエージェント（Claude Code / Codex CLI）の編集をEmacsで観測する自作レイヤ（=ai-ide.el=）。
