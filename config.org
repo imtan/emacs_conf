@@ -639,7 +639,8 @@ Eagleが起動している必要がある。
     :custom
     (org-journal-dir "~/Dropbox/Org")
     (org-journal-date-format "%A, %d %B %Y")
-    (org-journal-time-format "%R\n")
+    ;; 時刻は = で囲んで verbatim 表示にする（例: ** =13:04=）
+    (org-journal-time-format "=%R=\n")
     (org-journal-file-format "%Y%m%d.org")
     (org-journal-file-header
      "#+title: %Y-%m-%d Journal\n#+startup: folded\n\n")
