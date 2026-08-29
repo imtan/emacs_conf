@@ -85,12 +85,24 @@ NODES: 各見出しの plist のリスト。"
                        (req   (skilltree--requires-ids
                                (org-entry-get (point) "REQUIRES")))
                        (title (org-get-heading t t t t))
-                       (path  (org-get-outline-path)))
+                       (path  (org-get-outline-path))
+                       (runs 0) (last-run nil))
+                   ;; run記録(- [日付] run: …)を見出し直下から数える(子見出しは含まない)。
+                   ;; 新しい記録ほど上に入るので最初のマッチが最新
+                   (save-excursion
+                     (let ((end (save-excursion
+                                  (if (outline-next-heading) (point) (point-max)))))
+                       (while (re-search-forward
+                               "^[ \t]*- \\[\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)[^]]*\\] run:"
+                               end t)
+                         (cl-incf runs)
+                         (unless last-run (setq last-run (match-string 1))))))
                    (when id
                      (puthash id (and acq t) acquired))
                    (push (list :label label :mode mode :id id
                                :acquired acq :todo todo :exit exit
-                               :req req :title title :path path)
+                               :req req :title title :path path
+                               :runs runs :last-run last-run)
                          nodes)))))))))
     (cons acquired (nreverse nodes))))
 
@@ -121,6 +133,59 @@ ready / blocked / (broken . 未知ID列) / nil(対象外)。
       (cond (unknown (cons 'broken (nreverse unknown)))
             (unmet   'blocked)
             (t       'ready)))))
+
+(defun skilltree--run-suffix (node)
+  "NODE のrun記録の件数・最終日表示。記録が無ければ空文字。"
+  (let ((r (or (plist-get node :runs) 0)))
+    (if (> r 0)
+        (format "  (run×%d 最終%s)" r (or (plist-get node :last-run) "?"))
+      "")))
+
+;; --- run記録: ノードに「〜をやった」という事実を積む -----------------------
+;; 積むのは日付つきの行動事実だけ。ACQUIRED(できた)は現実判定の領分なので
+;; この経路からは一切触らない(そのためのキーも用意しない)。
+;; 記録はノードの :LOGBOOK: に入り、runメニューに件数として反映される。
+
+(defun skilltree--log-candidates ()
+  "run記録の対象(未取得PROBLEMかつID持ち)の alist (表示名 . ID)。"
+  (pcase-let ((`(,_ . ,nodes) (skilltree--scan)))
+    (let (cands)
+      (dolist (n nodes)
+        (when (and (plist-get n :id)
+                   (equal (plist-get n :todo) "PROBLEM")
+                   (not (plist-get n :acquired)))
+          (let ((ctx (skilltree--context n)))
+            (push (cons (format "%s ＞ %s%s"
+                                (plist-get n :label)
+                                (if ctx (concat ctx " ＞ ") "")
+                                (plist-get n :title))
+                        (plist-get n :id))
+                  cands))))
+      (nreverse cands))))
+
+;;;###autoload
+(defun skilltree-log-run ()
+  "ノードを選んで「〜をやった」を :LOGBOOK: に1行追記する。"
+  (interactive)
+  (let* ((cands (skilltree--log-candidates))
+         (choice (completing-read "runしたノード: " cands nil t))
+         (id (cdr (assoc choice cands)))
+         (what (read-string "やったこと(1行): "))
+         (loc (org-id-find id)))
+    (when (string-empty-p (string-trim what))
+      (user-error "空のrunは記録しない"))
+    (unless loc
+      (user-error "skilltree: ID %s の場所が見つかりません" id))
+    (with-current-buffer (find-file-noselect (car loc))
+      (org-with-wide-buffer
+       (goto-char (cdr loc))
+       (let ((org-log-into-drawer "LOGBOOK"))
+         (goto-char (org-log-beginning t))
+         (insert (format "- %s run: %s\n"
+                         (format-time-string "[%Y-%m-%d %a %H:%M]")
+                         what))))
+      (save-buffer))
+    (message "run記録: %s" choice)))
 
 ;;;###autoload
 (defun skilltree-run-menu ()
@@ -160,9 +225,10 @@ READYフロンティア(ハード領域) + 未解決PROBLEM(ソフト領域)。"
                       (insert "- READYなし\n")
                     (dolist (n ready)
                       (let ((ctx (skilltree--context n)))
-                        (insert (format "- %s%s\n"
+                        (insert (format "- %s%s%s\n"
                                         (if ctx (concat ctx " ＞ ") "")
-                                        (skilltree--link n))))))))))
+                                        (skilltree--link n)
+                                        (skilltree--run-suffix n))))))))))
           ;; --- ソフト領域: 未解決PROBLEM + EXIT ---
           (insert "\n* 未解決PROBLEM(ソフト領域)\n")
           (dolist (tree skilltree-trees)
@@ -179,9 +245,10 @@ READYフロンティア(ハード領域) + 未解決PROBLEM(ソフト領域)。"
                     (dolist (n probs)
                       (let ((ctx (skilltree--context n))
                             (exit (plist-get n :exit)))
-                        (insert (format "- %s%s"
+                        (insert (format "- %s%s%s"
                                         (if ctx (concat ctx " ＞ ") "")
-                                        (skilltree--link n)))
+                                        (skilltree--link n)
+                                        (skilltree--run-suffix n)))
                         (if exit
                             (insert (format "\n  - EXIT: %s\n" exit))
                           (cl-incf debt)

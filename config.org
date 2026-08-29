@@ -1290,6 +1290,20 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
     ("g" text-scale-increase "in")
     ("l" text-scale-decrease "out"))
 #+end_src
+*** skilltree run記録
+#+begin_src emacs-lisp :tangle yes
+  ;; C-c J → スキルツリーのノードに「〜をやった」という行動事実を積む。
+  ;; 記録は日付つきの事実のみ。ACQUIRED(できた)は現実判定の領分なので
+  ;; この経路には触るキー自体を用意しない。件数はrunメニュー(C-c r)に反映される。
+  (defhydra hydra-skilltree (:color blue :hint nil)
+    "
+ スキルツリー   _r_: run記録（〜をやった）   _m_: 今日のrunメニュー   _q_: 閉じる
+"
+    ("r" skilltree-log-run)
+    ("m" skilltree-run-menu)
+    ("q" nil))
+  (global-set-key (kbd "C-c J") #'hydra-skilltree/body)
+#+end_src
 ** ligaturen
 *** Ligature
 #+begin_src emacs-lisp :tangle yes
