@@ -1628,6 +1628,18 @@ spoolはDropboxの外に置くこと（同期書き戻しでfile-notifyが二重
     :straight t
     :init (global-flycheck-mode))
 #+end_src
+*** devdocs
+[[https://devdocs.io][DevDocs]] のドキュメントを Emacs 内で読む（Info 風ビューア）。
+まず ~M-x devdocs-install~ で必要なドキュメント（ruby, rails, godot 等）を落とす。
+~C-c d~ で索引から引く。最初の呼び出しでバッファごとに検索対象ドキュメントを選ぶ
+（カンマ区切りで複数可）。~C-u C-c d~ で選び直し。~M-x devdocs-peruse~ で先頭から通読。
+データは ~devdocs-data-dir~（既定 =~/.emacs.d/devdocs/=、.gitignore 済み）。
+#+begin_src emacs-lisp :tangle yes
+  ;; C-h は delete-backward-char に割り当て済みなので README 推奨の C-h D は使えない
+  (use-package devdocs
+    :straight t
+    :bind (("C-c d" . devdocs-lookup)))
+#+end_src
 *** GDScript
 #+begin_src emacs-lisp :tangle yes
   (use-package gdscript-mode

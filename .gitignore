@@ -29,6 +29,7 @@ org-persist/
 
 # キャッシュ・一時ファイル
 .cache/
+devdocs/
 auto-save-list/
 eln-cache/
 server/
