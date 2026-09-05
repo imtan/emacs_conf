@@ -136,6 +136,22 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     (setq magit-diff-highlight-trailing nil))
 
 #+end_src
+** forge
+magit の姉妹パッケージ。GitHub の issue / PR をローカル DB（SQLite）に取り込み、
+magit-status に一覧表示する。magit-status 内の ~'~ で forge メニューが開く。
+- ~forge-pull~ で取得、~forge-checkout-pullreq~ で PR ブランチをチェックアウトして magit で差分を読む
+- ~forge-create-post~ でコメント、~forge-approve-pullreq~ / ~forge-request-changes~ で承認・修正依頼
+- 差分の行単位コメント（inline review）は未対応（magit/forge#75）
+
+トークンは ~~/.authinfo~ に置く（リポジトリには書かない）。
+~git config --global github.user <GitHubユーザー名>~ も必要。
+: machine api.github.com login <GitHubユーザー名>^forge password <token>
+DB は ~forge-database.sqlite~（.gitignore 済み）。
+#+begin_src emacs-lisp :tangle yes
+  (use-package forge
+    :straight t
+    :after magit)
+#+end_src
 ** Org
 *** org-padding
 #+begin_src emacs-lisp :tangle yes

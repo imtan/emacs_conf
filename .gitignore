@@ -8,6 +8,7 @@ smudge/token
 .authinfo.gpg
 
 # 個人データ・履歴
+forge-database.sqlite
 org-gcal/
 chatgpt/
 recentf
