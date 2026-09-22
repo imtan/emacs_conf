@@ -4,7 +4,7 @@
 * config.el
 ** header
 #+begin_src emacs-lisp :tangle yes
-  ;;; package --- Summary
+  ;;; package --- Summary  -*- lexical-binding: t -*-
   ;;; Commentary:
   ;;; Code:
 #+end_src
@@ -982,7 +982,7 @@ Feynman学習システム（learning-system.md）のEmacs面（C-c f）。
                       (let ((c (alist-get 'cover b)))
                         (if (and c (not (string-empty-p c)))
                             c
-                          (when-let ((i (alist-get 'isbn b)))
+                          (when-let* ((i (alist-get 'isbn b)))
                             (format "https://covers.openlibrary.org/b/isbn/%s-M.jpg" i)))))
        ":CREATED: " (format-time-string "[%Y-%m-%d %H:%M]") "\n"
        ":END:\n"
@@ -1434,7 +1434,7 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 
   (defun my/claude-code--setup-window (buf-name)
     "Claude Codeバッファをサイドウィンドウに表示する."
-    (when-let ((buf (get-buffer buf-name)))
+    (when-let* ((buf (get-buffer buf-name)))
       (display-buffer
        buf
        '(display-buffer-in-side-window

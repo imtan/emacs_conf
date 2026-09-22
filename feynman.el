@@ -112,7 +112,7 @@
 
 (defun feynman--scheduled-day (entry)
   "ENTRYのSCHEDULEDを通算日に変換する。"
-  (when-let ((scheduled (plist-get entry :scheduled)))
+  (when-let* ((scheduled (plist-get entry :scheduled)))
     (time-to-days (org-time-string-to-time scheduled))))
 
 (defun feynman--due-entries ()
@@ -120,7 +120,7 @@
   (let ((today (time-to-days (current-time)))
         due)
     (dolist (entry (feynman--entries))
-      (when-let ((day (feynman--scheduled-day entry)))
+      (when-let* ((day (feynman--scheduled-day entry)))
         (when (<= day today)
           (push (plist-put entry :overdue (- today day)) due))))
     (sort due (lambda (a b)
@@ -179,7 +179,7 @@
 (defun feynman-menu-start-at-point ()
   "現在行のトピックでFeynmanセッションを開始する。"
   (interactive)
-  (if-let ((topic (or (get-text-property (point) 'feynman-topic)
+  (if-let* ((topic (or (get-text-property (point) 'feynman-topic)
                       (get-text-property (line-beginning-position)
                                          'feynman-topic))))
       (feynman--send-to-claude topic)

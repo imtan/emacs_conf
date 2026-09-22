@@ -6,7 +6,7 @@
 * early-init.el
 ** header
 #+begin_src emacs-lisp :tangle yes
-  ;;; package --- Summary
+  ;;; package --- Summary  -*- lexical-binding: t -*-
   ;;; Commentary:
   ;;; Code:
 #+end_src
