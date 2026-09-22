@@ -1671,7 +1671,11 @@ spoolはDropboxの外に置くこと（同期書き戻しでfile-notifyが二重
   ;; lsp-mode（診断提供元を Flycheck に）
   (use-package lsp-mode
     :straight t
-    :hook ((gdscript-mode . lsp-deferred))
+    ;; Godot の LSP はエディタ内蔵。6005 が開いている時だけ繋ぐ（未起動時のエラー連発防止）
+    :hook ((gdscript-mode . (lambda ()
+                              (when (ignore-errors
+                                      (delete-process (open-network-stream "gd-probe" nil "localhost" 6005)) t)
+                                (lsp-deferred)))))
     :custom
     (lsp-diagnostics-provider :flycheck)  ;; ← 重要
     (lsp-headerline-breadcrumb-enable t))
