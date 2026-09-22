@@ -1927,6 +1927,31 @@ spoolはDropboxの外に置くこと（同期書き戻しでfile-notifyが二重
 
 #+RESULTS:
 
+** elfeed (RSS)
+RSS リーダー。DB は ~~/Dropbox/elfeed/~ に置いて Mac / Windows で既読状態を共有する。
+購読リストは ~~/Dropbox/Org/elfeed.org~ を elfeed-org で読む（見出し = タグ、~[[url]]~ 行 = フィード）。
+- ~C-c w~ で一覧、~G~ で更新、~s~ で絞り込み（例: ~+unread +emacs~）、~b~ でブラウザ表示
+- 同期の注意: 2台で同時に開くと index が競合コピーになる。片方を閉じてから使う
+#+begin_src emacs-lisp :tangle yes
+  (use-package elfeed
+    :straight t
+    :bind ("C-c w" . elfeed)
+    :custom
+    (elfeed-db-directory "~/Dropbox/elfeed")
+    (elfeed-search-filter "@2-weeks-ago +unread")
+    :config
+    ;; 終了時に index を書き出してから閉じる（Dropbox 同期漏れ防止）
+    (add-hook 'kill-emacs-hook #'elfeed-db-save))
+
+  (use-package elfeed-org
+    :straight t
+    :after elfeed
+    :custom
+    (rmh-elfeed-org-files '("~/Dropbox/Org/elfeed.org"))
+    :config
+    (elfeed-org))
+#+end_src
+
 ** Gemini 執筆支援
 ~gptel~ を利用して Gemini API で翻訳・校正・要約・ブログ下書き生成を行う。
 APIキーは ~.authinfo~ または環境変数 ~GEMINI_API_KEY~ から取得。
