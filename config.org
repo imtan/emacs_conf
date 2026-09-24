@@ -1687,9 +1687,12 @@ spoolはDropboxの外に置くこと（同期書き戻しでfile-notifyが二重
       "GDScript linter (gdtoolkit)."
       :command ("gdlint" source)
       :error-patterns
-      ((error line-start (file-name) ":" line ":" column ": E" (id (+ (not ?\:) )) ": " (message) line-end)
-       (warning line-start (file-name) ":" line ":" column ": W" (id (+ (not ?\:) )) ": " (message) line-end)
-       (info line-start (file-name) ":" line ":" column ": C" (id (+ (not ?\:) )) ": " (message) line-end))
+      ;; gdlint 4.x の出力は「FILE:LINE: Error: MESSAGE (rule-name)」。列番号も E/W/C の区別も無い
+      ((error line-start (file-name) ":" line ": Error: " (message) " (" (id (+ (not (any ")")))) ")" line-end)
+       ;; 構文解析エラーは別形式（複数行）:「FILE:\n\n<該当行>\n   ^\n\nUnexpected token ... at line L, column C.」
+       (error line-start (file-name) ":\n" (minimal-match (zero-or-more anything))
+              line-start (message (minimal-match (one-or-more not-newline))) (? ",")
+              " at line " line (or ", column " " col ") column))
       :modes (gdscript-mode))
     (add-to-list 'flycheck-checkers 'gdlint))
 #+end_src
