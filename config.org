@@ -16,6 +16,14 @@
   (defconst IS-WINDOWS (memq system-type '(cygwin windows-nt ms-dos)))
 #+end_src
 
+** macOS の修飾キー
+Command を Meta にする（NS 版 Emacs.app 用。旧 emacs-mac 向けの =init-osx.el= は ~window-system~ が =mac= の時しか効かず、今は読み込んでもいない）。
+Option は既定のまま Meta。NeoEmacs は ~init.el~ 側の s- → M- 読み替えで同じ挙動にしてある。
+#+begin_src emacs-lisp :tangle yes
+  (when (eq window-system 'ns)
+    (setq ns-command-modifier 'meta))
+#+end_src
+
 ** フォント設定
 #+begin_src emacs-lisp :tangle yes
   (when (member "Segoe UI Emoji" (font-family-list))
