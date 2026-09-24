@@ -52,6 +52,9 @@
 ;; ~/.emacs.d を load-path に入れると、直下の接続履歴ファイル tramp 等が
 ;; 同名ライブラリと誤認される（TRAMPロード時にgitが走る原因になった）ため、
 ;; load-path には追加せず config.el を直接 load する
+;; config.el 内の hydra・表示設定が失敗しないよう、neomacs の回避コードを先に読み込む
+(when (fboundp 'neomacs-frame-shader)
+  (load (expand-file-name "neomacs.el" user-emacs-directory) nil 'nomessage))
 (load (expand-file-name "config.el" user-emacs-directory) nil 'nomessage)
 
 (provide 'init)

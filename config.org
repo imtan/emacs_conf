@@ -115,15 +115,15 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     (dashboard-setup-startup-hook))
   ;; emacsclientで作った新フレーム（ファイル指定なし）でもdashboardを表示する
   (setq initial-buffer-choice (lambda () (get-buffer-create dashboard-buffer-name)))
-  (setq dashboard-startup-banner "~/.emacs.d/ascii-banner.txt")
+  (setq dashboard-startup-banner (expand-file-name "ascii-banner.txt" user-emacs-directory))
   ;; タイトル文字列（いらなければ空文字でもOK）
   (setq dashboard-banner-logo-title "I’m talking about the present.")
 
   ;; 真ん中寄せしたい場合
   (setq dashboard-center-content t)
   (set-face-attribute 'dashboard-text-banner nil
-                      :family "Iosevka"
-                      :height 100)
+                      :family (if (fboundp 'neomacs-frame-shader) "Iosevka NFM" "Iosevka")  ;; 素の "Iosevka" は未導入。neomacs は曖昧一致せず点字が Apple Braille に落ちて崩れる
+                      :height (if (fboundp 'neomacs-frame-shader) (quote unspecified) 100))  ;; neomacs は行高を既定フォントで固定するため、縮小すると行間が空いて AA が崩れる
   (setq dashboard-items '((recents  . 5)
   			(bookmarks . 5)
   			(projects . 5)
@@ -1390,7 +1390,8 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 #+begin_src emacs-lisp :tangle yes
   (use-package vterm
     :straight t
-    :if (not (eq system-type 'windows-nt))   ;; Windowsはvterm(ネイティブ)非対応のため読み込まない
+    ;; Windowsはvterm(ネイティブ)非対応。NEO Emacs も C 製動的モジュール(vterm-module)に頼らない方針で読み込まない
+    :if (not (or (eq system-type 'windows-nt) (fboundp 'neomacs-frame-shader)))
     :custom
     (vterm-max-scrollback 10000)
     (vterm-buffer-name-string "vterm: %s")
@@ -1881,7 +1882,10 @@ spoolはDropboxの外に置くこと（同期書き戻しでfile-notifyが二重
   ;; server-running-p はクラッシュ等で残った古い server ファイルを
   ;; 「稼働中」と誤判定する(Windows/TCP)ため、ガードせず無条件に起動して上書きする
   (require 'server)
-  (server-start)
+  ;; neomacs: 失敗しても init を打ち切らない（以降の load-theme 等が読まれなくなるため）
+  (when (fboundp 'neomacs-frame-shader)
+    (setq server-name "neomacs"))  ;; Emacs.app と同時起動しても "server" を取り合わない
+  (with-demoted-errors "server-start: %S" (server-start))
 #+end_src
 ** imepad（Emacs を他アプリの入力窓にする）
 グローバルショートカットで =~/.emacs.d/imepad.sh= を起動すると Emacs の小窓が開き、~C-c C-c~ で元のアプリに貼り付ける。
