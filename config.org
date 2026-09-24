@@ -616,7 +616,7 @@ Eagleが起動している必要がある。
     (setq org-roam-ui-sync-theme t
           org-roam-ui-follow t
           org-roam-ui-update-on-save t
-          org-roam-ui-open-on-start t))
+          org-roam-ui-open-on-start nil))  ;; 起動のたびにブラウザが開くのは邪魔。見たいときは M-x org-roam-ui-open
 #+end_src
 
 
