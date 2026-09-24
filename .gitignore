@@ -105,3 +105,6 @@ nul
 
 # Claude Codeのマシンローカル設定
 .claude/settings.local.json
+
+# Nostr (nostr.el) のローカルDB
+nostr-db.sqlite*

@@ -1947,6 +1947,32 @@ Emacs 側は emacsclient から一時ファイルを渡されて書き戻すだ�
 
 #+RESULTS:
 
+** Nostr (nostr.el)
+[[https://github.com/trevarj/nostr.el][nostr.el]] で Nostr を読み書きする。署名・鍵生成は Rust 製の =nostr-el-backend= に任せる
+（Mac 用バイナリ配布は無いので =straight/repos/nostr.el= で ~cargo build --release~ し、=~/.cargo/bin/= に置く）。
+- 秘密鍵は =~/.config/nostr/private.gpg=（GPG 暗号化、Emacs / NeoEmacs で共有）。初回は ~M-x nostr-generate-private-key~ か ~M-x nostr-setup-import-private-key~
+- ~M-x nostr-check-backend~ で疎通確認、~M-x nostr-open~ でタイムライン。各バッファで ~?~ を押すと操作メニュー
+- Feed には自分の投稿も混ぜて出す（advice。~P~ は自分の投稿だけ）
+- 画像はノートごとに1枚まで自動でインライン表示（~nostr-media-auto-preview~）。残りは ~M-x nostr-media-load-at-point~
+#+begin_src emacs-lisp :tangle yes
+  ;; GPG のパスフレーズは Emacs のミニバッファで聞く。Mac の pinentry は端末用しか無く、
+  ;; GUI Emacs から呼ぶと鍵ファイルの暗号化が "Encrypt failed" になるため
+  (setq epg-pinentry-mode 'loopback)
+
+  (use-package nostr
+    :straight (nostr :type git :host github :repo "trevarj/nostr.el")
+    :commands (nostr-open nostr-create-note nostr-check-backend
+               nostr-generate-private-key nostr-setup-import-private-key)
+    :custom
+    (nostr-private-key-path (expand-file-name "~/.config/nostr/private.gpg"))
+    (nostr-db-path (expand-file-name "nostr-db.sqlite" user-emacs-directory))
+    (nostr-relay-urls '("wss://relay.primal.net" "wss://relay.damus.io"))
+    (nostr-media-auto-preview t)
+    :config
+    ;; Feed に自分の投稿も混ぜる（既定は exclude-self）。home-feed は自分を含む同じ問い合わせ
+    (advice-add 'nostr-db-select-account-feed :override #'nostr-db-select-home-feed))
+#+end_src
+
 ** elfeed (RSS)
 RSS リーダー。DB は ~~/Dropbox/elfeed/~ に置いて Mac / Windows で既読状態を共有する。
 購読リストは ~~/Dropbox/Org/elfeed.org~ を elfeed-org で読む（見出し = タグ、~[[url]]~ 行 = フィード）。
