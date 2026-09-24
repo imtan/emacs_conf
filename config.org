@@ -1401,9 +1401,10 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 #+end_src
 
 *** Claude Code
-~vterm~ を利用してEmacs内でClaude Codeを起動・操作する。
+端末バッファ内でClaude Codeを起動・操作する。端末は GNU Emacs では ~vterm~ 、
+NEO Emacs では純Elispの ~eat~ を使う（ ~my/claude-code-use-eat~ で切替）。
 ~claude~ コマンドにパスが通っている必要がある。
-初回起動時に ~cmake~ と ~libvterm~ が必要（自動ビルド）。
+vterm の場合のみ、初回起動時に ~cmake~ と ~libvterm~ が必要（自動ビルド）。
 
 | キーバインド | 動作                              |
 |--------------+-----------------------------------|
@@ -1414,6 +1415,28 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
 | C-c C f      | 現在のファイルをClaude Codeに送信 |
 
 #+begin_src emacs-lisp :tangle yes
+  (defvar my/claude-code-use-eat (fboundp 'neomacs-frame-shader)
+    "non-nil なら端末に eat を使う。既定は NEO Emacs のときだけ t（それ以外は vterm）。")
+
+  (defun my/claude-code--term-start (buf-name)
+    "BUF-NAME という名前の端末バッファを作り、シェルを起動する."
+    (if my/claude-code-use-eat
+        (progn (require 'eat)
+               ;; eat-make は名前を * で囲むので、両端の * を外して渡す
+               (eat-make (substring buf-name 1 -1) (eat-default-shell)))
+      (vterm buf-name)))
+
+  (defun my/claude-code--term-send (buf-name text &optional paste)
+    "BUF-NAME の端末へ TEXT を送って Enter する. PASTE が non-nil なら貼り付けとして送る."
+    (with-current-buffer buf-name
+      (if my/claude-code-use-eat
+          (progn (if paste
+                     (eat-term-send-string-as-yank eat-terminal (list text))
+                   (eat-term-send-string eat-terminal text))
+                 (eat-term-send-string eat-terminal "\r"))
+        (vterm-send-string text paste)
+        (vterm-send-return))))
+
   (defun my/claude-code--buf-name ()
     "プロジェクトに対応するClaude Codeバッファ名を返す."
     (let ((root (or (when (project-current)
@@ -1436,8 +1459,8 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
     (let ((buf-name (my/claude-code--buf-name)))
       (unless (get-buffer buf-name)
         (let ((default-directory (my/claude-code--root)))
-          (vterm buf-name)
-          (vterm-send-string "claude\n")))
+          (my/claude-code--term-start buf-name)
+          (my/claude-code--term-send buf-name "claude")))
       (my/claude-code--setup-window buf-name)))
 
   (defun my/claude-code--setup-window (buf-name)
@@ -1468,13 +1491,12 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
         (let ((kill-buffer-query-functions nil))
           (kill-buffer buf-name)))
       (let ((default-directory root))
-        (vterm buf-name)
+        (my/claude-code--term-start buf-name)
         (let ((buf buf-name))
           (run-at-time 0.5 nil
                        `(lambda ()
                           (when (buffer-live-p (get-buffer ,buf))
-                            (with-current-buffer ,buf
-                              (vterm-send-string "claude\n")))))))
+                            (my/claude-code--term-send ,buf "claude"))))))
       (my/claude-code--setup-window buf-name)))
 
   (defun my/claude-code-send-region (start end)
@@ -1491,9 +1513,8 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
             (setq waited (+ waited 0.5)))))
       (if (get-buffer buf-name)
           (progn
-            (with-current-buffer buf-name
-              (vterm-send-string text)
-              (vterm-send-return))
+            ;; 複数行のリージョンが1行ずつ送信されないよう、貼り付けとして送る
+            (my/claude-code--term-send buf-name text t)
             (my/claude-code--setup-window buf-name))
         (error "Claude Codeバッファ '%s' の起動に失敗しました" buf-name))))
 
@@ -1511,9 +1532,7 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
               (setq waited (+ waited 0.5)))))
         (if (get-buffer buf-name)
             (progn
-              (with-current-buffer buf-name
-                (vterm-send-string (concat "このファイルを見てください: " rel-path))
-                (vterm-send-return))
+              (my/claude-code--term-send buf-name (concat "このファイルを見てください: " rel-path))
               (my/claude-code--setup-window buf-name))
           (error "Claude Codeバッファ '%s' の起動に失敗しました" buf-name)))))
 
@@ -1536,7 +1555,8 @@ script-opts=ytdl_hook-ytdl_path=yt-dlp
                  (slot . 0)
                  (window-parameters . ((no-delete-other-windows . t)))))
 
-  ;; vterm バッファでの追加キーバインド
+  ;; vterm バッファでの追加キーバインド（eat は semi-char モードで C-c がプレフィックスのまま残るため、
+  ;; グローバルの C-c C ... がそのまま効く。追加設定は不要）
   (with-eval-after-load 'vterm
     (define-key vterm-mode-map (kbd "C-c C t") #'my/claude-code-toggle)
     (define-key vterm-mode-map (kbd "C-c C n") #'my/claude-code-new-session))
