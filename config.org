@@ -1997,7 +1997,12 @@ Emacs 側は emacsclient から一時ファイルを渡されて書き戻すだ�
     (nostr-media-auto-preview t)
     :config
     ;; Feed に自分の投稿も混ぜる（既定は exclude-self）。home-feed は自分を含む同じ問い合わせ
-    (advice-add 'nostr-db-select-account-feed :override #'nostr-db-select-home-feed))
+    (advice-add 'nostr-db-select-account-feed :override #'nostr-db-select-home-feed)
+    ;; 画像サーバー側の不備（Content-Type が octet-stream、Content-Length 無し）で弾かれる画像も表示する。
+    ;; 種類の判定は Emacs の画像デコーダが行い、サイズ上限はダウンロード後にも検査されるので残る
+    ;; ponytail: ヘッダ段階のサイズ検査を丸ごと外すので、巨大ファイルは落としてから捨てる形になる
+    (add-to-list 'nostr-media-allowed-content-types "application/octet-stream")
+    (advice-add 'nostr-media--validate-headers :override #'ignore))
 #+end_src
 
 ** elfeed (RSS)
