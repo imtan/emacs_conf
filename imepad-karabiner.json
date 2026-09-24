@@ -1,0 +1,20 @@
+{
+    "title": "imepad",
+    "rules": [
+        {
+            "description": "imepad: ⌘⌃J で Emacs、⌘⌃⇧J で NeoEmacs の入力窓を開く",
+            "manipulators": [
+                {
+                    "type": "basic",
+                    "from": { "key_code": "j", "modifiers": { "mandatory": ["command", "control"] } },
+                    "to": [{ "shell_command": "~/.emacs.d/imepad.sh" }]
+                },
+                {
+                    "type": "basic",
+                    "from": { "key_code": "j", "modifiers": { "mandatory": ["command", "control", "shift"] } },
+                    "to": [{ "shell_command": "IMEPAD_SOCKET=neomacs ~/.emacs.d/imepad.sh" }]
+                }
+            ]
+        }
+    ]
+}

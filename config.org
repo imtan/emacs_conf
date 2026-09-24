@@ -1852,6 +1852,18 @@ spoolはDropboxの外に置くこと（同期書き戻しでfile-notifyが二重
   (require 'server)
   (server-start)
 #+end_src
+** imepad（Emacs を他アプリの入力窓にする）
+グローバルショートカットで =~/.emacs.d/imepad.sh= を起動すると Emacs の小窓が開き、~C-c C-c~ で元のアプリに貼り付ける。
+Emacs 側は emacsclient から一時ファイルを渡されて書き戻すだけ（=$EDITOR= と同じ仕組み）。
+- 起動: =imepad.sh [paste|type|copy]=。NeoEmacs 宛は =IMEPAD_SOCKET=neomacs imepad.sh=。Windows は =imepad.ahk= を AutoHotkey v2 で常駐
+- ~C-c C-c~ 送る / ~C-c C-k~ 破棄。小窓では SKK で書く（OS の IME は触らない）
+- macOS はショートカットの起動元アプリ（Raycast / Karabiner 等）に「アクセシビリティ」許可が要る（⌘V を送るため）
+#+begin_src emacs-lisp :tangle yes
+  (load (expand-file-name "imepad.el" user-emacs-directory) t 'nomessage)
+  (when (fboundp 'imepad-setup)
+    (setq imepad-input-method "japanese-skk")
+    (imepad-setup))
+#+end_src
 ** 見た目の設定
 #+begin_src emacs-lisp :tangle yes
     (load-theme 'modus-vivendi t)
