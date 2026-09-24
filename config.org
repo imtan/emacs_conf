@@ -64,7 +64,7 @@ Emacs標準の ~package.el+quelpa~ や ~el-get~ 等を色々試した結果、
   (use-package bind-key
     :straight t)
 
-  (global-set-key (kbd "C-c ,") (lambda() (interactive) (find-file "~/.emacs.d/config.org")))
+  (global-set-key (kbd "C-c ,") (lambda() (interactive) (find-file (expand-file-name "config.org" user-emacs-directory))))
   (global-unset-key "\C-h")
   (global-set-key "\C-h" 'delete-backward-char)
   (global-set-key (kbd "C-c <left>")  'windmove-left)
@@ -84,10 +84,10 @@ Emacsは~C-\~で日本語入力を切り替えることができますが、
     :straight (ddskk :host github :repo "skk-dev/ddskk")
     :bind (("C-\\" . skk-mode))
     :init
-    (setq skk-user-directory "~/.emacs.d/ddskk")
-    (setq skk-init-file "~/.emacs.d/ddskk/init")
+    (setq skk-user-directory (expand-file-name "ddskk" user-emacs-directory))
+    (setq skk-init-file (expand-file-name "ddskk/init" user-emacs-directory))
     (setq skk-byte-compile-init-file t)
-    (setq skk-large-jisyo "~/.emacs.d/skk-get-jisyo/SKK-JISYO.myjisyo"))
+    (setq skk-large-jisyo (expand-file-name "skk-get-jisyo/SKK-JISYO.myjisyo" user-emacs-directory)))
 
   (use-package ddskk-posframe
     :straight (ddskk-posframe
@@ -181,7 +181,7 @@ OSXやLinuxを使用する場合はpngpasteをインストールする必要が�
     	"Clipboardの画像を ./img/YYYY-mm-dd-HH-MM-SS.png に保存してリンクを挿入。"
     	(interactive)
     	(let* ((filename (concat (format-time-string "img/%Y-%m-%d-%H-%M-%S") ".png"))
-                 (script   (expand-file-name "~/.emacs.d/windows/paste_image.ps1"))
+                 (script   (expand-file-name "windows/paste_image.ps1" user-emacs-directory))
                  (_ (let ((dir (file-name-directory filename)))
                       (unless (file-directory-p dir) (make-directory dir t))))
                  (exit-code
